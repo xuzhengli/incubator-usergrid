@@ -30,7 +30,6 @@ import org.usergrid.count.common.Count;
 import me.prettyprint.cassandra.model.HCounterColumnImpl;
 import me.prettyprint.cassandra.serializers.ByteBufferSerializer;
 import me.prettyprint.hector.api.Keyspace;
-import me.prettyprint.hector.api.exceptions.HectorException;
 import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.mutation.Mutator;
 
@@ -42,6 +41,9 @@ import me.prettyprint.hector.api.mutation.Mutator;
  */
 public class CassandraCounterStore implements CounterStore {
     private Logger log = LoggerFactory.getLogger( CassandraCounterStore.class );
+
+    // keep track of exceptions thrown in scheduler so we can reduce noise in logs
+    private Map<String, Integer> counterInsertFailures = new HashMap<String, Integer>();
 
     private final Keyspace keyspace;
 
@@ -76,8 +78,23 @@ public class CassandraCounterStore implements CounterStore {
         try {
             mutator.execute();
         }
-        catch ( HectorException he ) {
-            log.error( "Insert failed. Reason: ", he );
+        catch ( Exception e ) {
+
+            // errors here happen a lot on shutdown, don't fill the logs with them
+            String error = e.getClass().getCanonicalName();
+            if (counterInsertFailures.get( error ) == null) {
+                log.error( "CounterStore insert failed, first instance", e);
+                counterInsertFailures.put( error, 1);
+
+            } else {
+                int count = counterInsertFailures.get(error) + 1; 
+                counterInsertFailures.put(error, count);
+                if (log.isDebugEnabled()) {
+                    log.debug( error + " caused CounterStore insert failure, count =  " + count, e );
+                } else {
+                    log.error( error + " caused CounterStore insert failure, count =  " + count );
+                }
+            }
         }
     }
 }

@@ -278,7 +278,7 @@ public class ConsumerTransaction extends NoTransactionSearch
         }
         catch ( UGLockException e )
         {
-            logger.error( "Unable to acquire lock", e );
+            logger.debug( "Unable to acquire lock", e );
             throw new QueueException( "Unable to acquire lock", e );
         }
         finally
@@ -289,7 +289,7 @@ public class ConsumerTransaction extends NoTransactionSearch
             }
             catch ( UGLockException e )
             {
-                logger.error( "Unable to release lock", e );
+                logger.debug( "Unable to release lock", e );
                 throw new QueueException( "Unable to release lock", e );
             }
         }
