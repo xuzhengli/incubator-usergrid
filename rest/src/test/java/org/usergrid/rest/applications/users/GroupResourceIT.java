@@ -70,7 +70,6 @@ public class GroupResourceIT extends AbstractRestIT {
     }
 
 
-    //    @Ignore
     @Test
     public void failGroupNameValidation() {
 
@@ -80,9 +79,9 @@ public class GroupResourceIT extends AbstractRestIT {
         {
             boolean failed = false;
             try {
-                client.createGroup( "groupName withspace" );
-            }
-            catch ( Exception e ) {
+                ApiResponse groupResponse = client.createGroup( "groupName withspace" );
+                failed = groupResponse.getError() != null;
+            } catch ( Exception e ) {
                 failed = true;
             }
             assertTrue( failed );
