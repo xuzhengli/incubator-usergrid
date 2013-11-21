@@ -22,7 +22,7 @@ import org.junit.Test;
 /** @author tnine */
 public class NotOrderByCollectionIT extends AbstractIteratingQueryIT {
     @Test
-    public void multiOrderByComplexUnionCollection() throws Exception {
+    public void orderByWithNot() throws Exception {
         notOrderBy( new CollectionIoHelper() );
     }
 }
