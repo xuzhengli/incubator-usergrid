@@ -16,10 +16,8 @@
   <properties>
     <!-- If you got the resources, max parallelism = 6 forks -->
     <rest.it.forkCount>3</rest.it.forkCount>
-
-    <!-- Tests can run even on 128m, but let's play it safe  -->
-    <rest.it.heapmax>256m</rest.it.heapmax>
-    <rest.it.heapmin>256m</rest.it.heapmin>
+    <ug.heapmin>1024m</ug.heapmin>
+    <ug.heapmax>1024m</ug.heapmax>
   </properties>
 
   <profiles>
@@ -82,7 +80,7 @@
               <forkCount>${rest.it.forkCount}</forkCount>
               <reuseForks>false</reuseForks>
               <perCoreThreadCount>false</perCoreThreadCount>
-              <argLine>-Xmx${rest.it.heapmax} -Xms${rest.it.heapmin} -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8
+              <argLine>-Xmx${ug.heapmax} -Xms${ug.heapmin} -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8
               </argLine>
 
               <includes>
@@ -140,7 +138,7 @@
               <forkCount>${rest.it.forkCount}</forkCount>
               <reuseForks>false</reuseForks>
               <perCoreThreadCount>false</perCoreThreadCount>
-              <argLine>-Xmx${rest.it.heapmax} -Xms${rest.it.heapmin} -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8
+              <argLine>-Xmx${ug.heapmax} -Xms${ug.heapmin} -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8
               </argLine>
 
               <includes>
@@ -178,7 +176,7 @@
                 <target.directory>${project.build.directory}</target.directory>
               </systemPropertyVariables>
               <forkMode>once</forkMode>
-              <argLine>-Xmx2G -Xms2G -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
+              <argLine>-Xmx${ug.heapmax} -Xms${ug.heapmin} -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
 
               <includes>
                 <include>**/ConcurrentRestTestSuite.java</include>
@@ -215,7 +213,7 @@
                 <target.directory>${project.build.directory}</target.directory>
               </systemPropertyVariables>
               <forkMode>once</forkMode>
-              <argLine>-Xmx2G -Xms2G -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
+              <argLine>-Xmx${ug.heapmax} -Xms${ug.heapmin} -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
 
               <includes>
                 <include>**/ConcurrentRestITSuite.java</include>
@@ -264,7 +262,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>-Xmx2G -Xms2G -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
+          <argLine>-Xmx${ug.heapmax} -Xms${ug.heapmin} -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
         </configuration>
       </plugin>
 

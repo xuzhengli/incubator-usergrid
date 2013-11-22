@@ -13,6 +13,11 @@
   <description>Mongo emulation layer for Usergrid system.</description>
   <packaging>jar</packaging>
 
+  <properties>
+    <ug.heapmin>1024m</ug.heapmin>
+    <ug.heapmax>1024m</ug.heapmax>
+  </properties>
+
   <reporting>
     <plugins>
       <plugin>
@@ -53,7 +58,7 @@
             <storage-config>${basedir}/src/test/conf</storage-config>
           </systemPropertyVariables>
           <forkMode>always</forkMode>
-          <argLine>-Xmx2G -Xms2G</argLine>
+          <argLine>-Xmx${ug.heapmax} -Xms${ug.heapmin}</argLine>
         </configuration>
       </plugin>
     </plugins>

@@ -13,6 +13,11 @@
   <description>Test Utilities for Usergrid system.</description>
   <packaging>jar</packaging>
 
+  <properties>
+    <ug.heapmin>1024m</ug.heapmin>
+    <ug.heapmax>1024m</ug.heapmax>
+  </properties>
+
   <build>
     <testResources>
       <testResource>
@@ -35,7 +40,7 @@
             <storage-config>${basedir}/src/test/conf</storage-config>
             <target-directory>${project.build.directory}</target-directory>
           </systemPropertyVariables>
-          <argLine>-Xmx2G -Xms2G -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
+          <argLine>-Xmx${ug.heapmax} -Xms${ug.heapmin} -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
 
           <includes>
             <include>**/CassandraResourceITSuite.java</include>

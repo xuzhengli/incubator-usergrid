@@ -14,6 +14,11 @@
   <packaging>jar</packaging>
   <version>0.0.28-SNAPSHOT</version>
 
+  <properties>
+    <ug.heapmin>1024m</ug.heapmin>
+    <ug.heapmax>1024m</ug.heapmax>
+  </properties>
+
   <reporting>
     <plugins>
       <plugin>
@@ -52,7 +57,7 @@
             <storage-config>${basedir}/src/test/conf</storage-config>
           </systemPropertyVariables>
           <forkMode>always</forkMode>
-          <argLine>-Xmx2G -Xms2G -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
+          <argLine>-Xmx${ug.heapmax} -Xms${ug.heapmin} -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
         </configuration>
       </plugin>
 
