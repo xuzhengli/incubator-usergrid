@@ -41,7 +41,7 @@
               </systemPropertyVariables>
               <forkMode>once</forkMode>
               <!-- TODO: make this into a small configuration but based on settings.xml -->
-              <argLine>-Xmx1G -Xms256m -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
+              <argLine>-Xmx${ug.heapmax} -Xms${ug.heapmin} -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</argLine>
 
               <includes>
                 <include>**/RestTestSuite.java</include>
