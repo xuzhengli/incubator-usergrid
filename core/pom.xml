@@ -12,10 +12,6 @@
     <!-- Up to 30x parallelism can be used -->
     <core.it.forkCount>2</core.it.forkCount>
     <core.it.suite.concurrency>5</core.it.suite.concurrency>
-
-    <!-- This seems to be a safe figure -->
-    <ug.heapmax>1024m</ug.heapmax>
-    <ug.heapmin>1024m</ug.heapmin>
   </properties>
 
   <artifactId>usergrid-core</artifactId>

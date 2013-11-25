@@ -14,11 +14,6 @@
   <packaging>jar</packaging>
   <version>0.0.28-SNAPSHOT</version>
 
-  <properties>
-    <ug.heapmin>1024m</ug.heapmin>
-    <ug.heapmax>1024m</ug.heapmax>
-  </properties>
-
   <reporting>
     <plugins>
       <plugin>

@@ -8,11 +8,6 @@
     <version>0.0.28-SNAPSHOT</version>
   </parent>
 
-  <properties>
-    <ug.heapmin>1024m</ug.heapmin>
-    <ug.heapmax>1024m</ug.heapmax>
-  </properties>
-
   <artifactId>usergrid-websocket</artifactId>
   <name>Usergrid Websocket</name>
   <description>WebSocket API for Usergrid system.</description>
