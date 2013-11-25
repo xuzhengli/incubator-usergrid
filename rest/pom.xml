@@ -16,8 +16,6 @@
   <properties>
     <!-- If you got the resources, max parallelism = 6 forks -->
     <rest.it.forkCount>3</rest.it.forkCount>
-    <ug.heapmin>1024m</ug.heapmin>
-    <ug.heapmax>1024m</ug.heapmax>
   </properties>
 
   <profiles>

@@ -11,8 +11,6 @@
   <!-- Override these properties in your settings.xml in an active profile -->
   <properties>
     <services.it.forkCount>2</services.it.forkCount>
-    <ug.heapmin>1024m</ug.heapmin>
-    <ug.heapmax>1024m</ug.heapmax>
   </properties>
 
   <artifactId>usergrid-services</artifactId>

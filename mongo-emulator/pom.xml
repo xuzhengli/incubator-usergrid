@@ -13,11 +13,6 @@
   <description>Mongo emulation layer for Usergrid system.</description>
   <packaging>jar</packaging>
 
-  <properties>
-    <ug.heapmin>1024m</ug.heapmin>
-    <ug.heapmax>1024m</ug.heapmax>
-  </properties>
-
   <reporting>
     <plugins>
       <plugin>
