@@ -75,8 +75,8 @@ public class OrganizationExport extends ExportingToolBase {
 
                     Long createdDate = ( Long ) admin.getProperties().get( "created" );
 
-                    writer.writeNext( new String[] {
-                            orgName, user.getName(), user.getEmail(),
+                    writer.writeNext( new String[] { organization.getUuid().toString(),
+                            orgName, user.getUuid().toString(), user.getName(), user.getEmail(),
                             createdDate == null ? "Unknown" : sdf.format( new Date( createdDate ) )
                     } );
                 }
