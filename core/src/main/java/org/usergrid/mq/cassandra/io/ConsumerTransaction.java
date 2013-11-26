@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -193,7 +194,8 @@ public class ConsumerTransaction extends NoTransactionSearch
         try
         {
 
-            lock.lock();
+            //only try to get a lock for 10 seconds, if we can't, bail out
+            lock.tryLock(10, TimeUnit.SECONDS);
 
             long startTime = System.currentTimeMillis();
 
@@ -301,8 +303,10 @@ public class ConsumerTransaction extends NoTransactionSearch
     /**
      * Get all pending transactions that have timed out
      *
-     * @param startId The time to start seeking from
-     * @param lastId The
+     * @param queueId The queue id
+     * @param consumerId The consumer id
+     * @param params The server params
+     * @param startTimeUUID The start time
      */
     protected List<TransactionPointer> getConsumerIds( UUID queueId, UUID consumerId, SearchParam params,
                                                        UUID startTimeUUID )
