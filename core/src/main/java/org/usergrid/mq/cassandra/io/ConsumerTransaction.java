@@ -60,20 +60,24 @@ public class ConsumerTransaction extends NoTransactionSearch
 
     private static final Logger logger = LoggerFactory.getLogger( ConsumerTransaction.class );
     private static final int MAX_READ = 10000;
-    private LockManager lockManager;
-    private UUID applicationId;
-    protected CassandraService cass;
+    private final LockManager lockManager;
+    private final UUID applicationId;
+    protected final CassandraService cass;
+
+    //timeout on reading lock
+    private final int lockTimeout;
 
 
     /**
      * @param ko
      */
-    public ConsumerTransaction( UUID applicationId, Keyspace ko, LockManager lockManager, CassandraService cass )
+    public ConsumerTransaction( UUID applicationId, Keyspace ko, LockManager lockManager, CassandraService cass, int lockTimeout )
     {
         super( ko );
         this.applicationId = applicationId;
         this.lockManager = lockManager;
         this.cass = cass;
+        this.lockTimeout = lockTimeout;
     }
 
 
@@ -194,8 +198,10 @@ public class ConsumerTransaction extends NoTransactionSearch
         try
         {
 
-            //only try to get a lock for 10 seconds, if we can't, bail out
-            lock.tryLock(10, TimeUnit.SECONDS);
+            //only try to get a lock with a timeout, if we can't bail
+            if(!lock.tryLock(lockTimeout, TimeUnit.SECONDS)){
+                throw new QueueException( "Unable to obtain a lock on queue '" + queuePath + "' after '" + lockTimeout + "'seconds" );
+            }
 
             long startTime = System.currentTimeMillis();
 
