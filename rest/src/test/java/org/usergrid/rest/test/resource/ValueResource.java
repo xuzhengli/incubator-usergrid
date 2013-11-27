@@ -112,6 +112,7 @@ public abstract class ValueResource extends NamedResource {
     }
 
 
+
     @SuppressWarnings("unchecked")
     public <T extends ValueResource> T withCursor( String cursor ) {
         this.cursor = cursor;
@@ -159,6 +160,7 @@ public abstract class ValueResource extends NamedResource {
 
 
         WebResource resource = withParams( withToken( resource() ) );
+
 
         if ( query != null ) {
             resource = resource.queryParam( "ql", query );
