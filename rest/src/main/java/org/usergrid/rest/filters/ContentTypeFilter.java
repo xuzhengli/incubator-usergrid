@@ -136,13 +136,39 @@ public class ContentTypeFilter implements Filter {
             }
 
 
-            String path = origRequest.getRequestURI();
+            final String path = origRequest.getRequestURI();
 
             logger.debug( "Content path is '{}'", path );
 
-            int initial = inputStream.read();
+            final int initial = inputStream.read();
 
-            String method = origRequest.getMethod();
+            final String method = origRequest.getMethod();
+
+            //we're doing a GET and our accept headers have params. Make sure if "text/html" is one of them,
+            // we set the type to json
+            if ( HttpMethod.GET.equals( method ) && contentType.hasMoreElements() ) {
+                boolean textHtml = false;
+
+                while ( contentType.hasMoreElements() ) {
+                    final String type = contentType.nextElement().toString();
+
+                    if ( type != null && type.contains( MediaType.TEXT_HTML)) {
+                        textHtml = true;
+                        break;
+                    }
+                }
+
+
+                /**
+                 * We don't currently accept text/html, just override with application/json
+                 */
+                if ( textHtml ) {
+                    setHeader( HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON );
+                    setHeader( HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON );
+                }
+
+                return;
+            }
 
 
             // nothing to read, check if it's a put or a post. If so set the
@@ -304,7 +330,9 @@ public class ContentTypeFilter implements Filter {
         }
 
 
-        /** Return the underlying source stream (never <code>null</code>). */
+        /**
+         * Return the underlying source stream (never <code>null</code>).
+         */
         public final InputStream getSourceStream() {
             return this.sourceStream;
         }
