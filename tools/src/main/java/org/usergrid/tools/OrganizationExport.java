@@ -57,7 +57,7 @@ public class OrganizationExport extends ExportingToolBase {
 
         CSVWriter writer = new CSVWriter( new FileWriter( outputDir.getAbsolutePath() + "/admins.csv" ), ',' );
 
-        writer.writeNext( new String[] { "Organization Name", "Admin Name", "Admin Email", "Admin Created Date" } );
+        writer.writeNext( new String[] { "Org uuid", "Org Name", "Admin uuid", "Admin Name", "Admin Email", "Admin Created Date" } );
 
         Results organizations = null;
 
