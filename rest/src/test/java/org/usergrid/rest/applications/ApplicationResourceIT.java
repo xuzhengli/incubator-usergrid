@@ -63,7 +63,6 @@ public class ApplicationResourceIT extends AbstractRestIT {
         assertNotNull( node.get( "entities" ) );
     }
 
-
     @Test
     public void applicationWithAppCredentials() throws Exception {
 
@@ -74,11 +73,51 @@ public class ApplicationResourceIT extends AbstractRestIT {
 
         JsonNode node = resource().path( "/test-organization/test-app/users" ).queryParam( "client_id", clientId )
                 .queryParam( "client_secret", clientSecret ).accept( MediaType.APPLICATION_JSON )
-                .type( MediaType.APPLICATION_JSON_TYPE ).get( JsonNode.class );
+               .get( JsonNode.class );
 
         assertNotNull( node.get( "entities" ) );
     }
 
+    /**
+     * Verifies that we return JSON even when text/html is requested. 
+     * (for backwards compatibility)
+     */
+    @Test
+    public void jsonForNoAccepts() throws Exception {
+
+        ApplicationInfo app = setup.getMgmtSvc().getApplicationInfo("test-organization/test-app");
+        String clientId = setup.getMgmtSvc().getClientIdForApplication( app.getId() );
+        String clientSecret = setup.getMgmtSvc().getClientSecretForApplication( app.getId() );
+
+        JsonNode node = resource()
+                .path( "/test-organization/test-app" )
+                .queryParam( "client_id", clientId )
+                .queryParam( "client_secret", clientSecret )
+                .get( JsonNode.class );
+
+        assertNotNull( node.get( "entities" ) );
+    }
+
+    /**
+     * Verifies that we return JSON even when text/html is requested. 
+     * (for backwards compatibility)
+     */
+    @Test
+    public void jsonForAcceptsTextHtml() throws Exception {
+
+        ApplicationInfo app = setup.getMgmtSvc().getApplicationInfo("test-organization/test-app");
+        String clientId = setup.getMgmtSvc().getClientIdForApplication( app.getId() );
+        String clientSecret = setup.getMgmtSvc().getClientSecretForApplication( app.getId() );
+
+        JsonNode node = resource()
+                .path( "/test-organization/test-app" )
+                .queryParam( "client_id", clientId )
+                .queryParam( "client_secret", clientSecret )
+                .accept( MediaType.TEXT_HTML )
+                .get( JsonNode.class );
+
+        assertNotNull( node.get( "entities" ) );
+    }
 
     @Test
     public void applicationWithJsonCreds() throws Exception {
