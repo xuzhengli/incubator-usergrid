@@ -89,7 +89,7 @@ import static org.usergrid.utils.JsonUtils.normalizeJsonTree;
 @Scope("prototype")
 @Produces({
         MediaType.APPLICATION_JSON, "application/javascript", "application/x-javascript", "text/ecmascript",
-        "application/ecmascript", "text/jscript", "text/html"
+        "application/ecmascript", "text/jscript"
 })
 public class ServiceResource extends AbstractContextResource {
 
