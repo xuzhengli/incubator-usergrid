@@ -79,7 +79,7 @@ public class ApplicationResourceIT extends AbstractRestIT {
     }
 
     /**
-     * Verifies that we return JSON even when text/html is requested. 
+     * Verifies that we return JSON even when no accept header is specified.
      * (for backwards compatibility)
      */
     @Test
