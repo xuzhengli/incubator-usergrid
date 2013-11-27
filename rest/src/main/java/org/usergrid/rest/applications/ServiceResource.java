@@ -280,6 +280,7 @@ public class ServiceResource extends AbstractContextResource {
 
 
     @GET
+    @Produces({MediaType.APPLICATION_JSON, MediaType.TEXT_HTML})
     @RequireApplicationAccess
     public JSONWithPadding executeGet( @Context UriInfo ui,
                                        @QueryParam("callback") @DefaultValue("callback") String callback )
@@ -577,7 +578,7 @@ public class ServiceResource extends AbstractContextResource {
 
     @GET
     @RequireApplicationAccess
-    @Produces(MediaType.APPLICATION_OCTET_STREAM)
+    @Produces({MediaType.APPLICATION_OCTET_STREAM})
     public Response executeStreamGet( @Context UriInfo ui, @PathParam("entityId") PathSegment entityId,
                                       @HeaderParam("range") String rangeHeader,
                                       @HeaderParam("if-modified-since") String modifiedSince ) throws Exception {
