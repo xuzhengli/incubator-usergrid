@@ -578,7 +578,7 @@ public class ServiceResource extends AbstractContextResource {
 
     @GET
     @RequireApplicationAccess
-    @Produces({MediaType.APPLICATION_OCTET_STREAM})
+    @Produces(MediaType.WILDCARD)
     public Response executeStreamGet( @Context UriInfo ui, @PathParam("entityId") PathSegment entityId,
                                       @HeaderParam("range") String rangeHeader,
                                       @HeaderParam("if-modified-since") String modifiedSince ) throws Exception {
