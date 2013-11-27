@@ -73,7 +73,7 @@ public class ApplicationResourceIT extends AbstractRestIT {
 
         JsonNode node = resource().path( "/test-organization/test-app/users" ).queryParam( "client_id", clientId )
                 .queryParam( "client_secret", clientSecret ).accept( MediaType.APPLICATION_JSON )
-               .get( JsonNode.class );
+                .type( MediaType.APPLICATION_JSON_TYPE ).get( JsonNode.class );
 
         assertNotNull( node.get( "entities" ) );
     }
