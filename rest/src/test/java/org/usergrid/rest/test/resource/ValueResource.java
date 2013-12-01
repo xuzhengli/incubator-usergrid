@@ -155,6 +155,22 @@ public abstract class ValueResource extends NamedResource {
     }
 
 
+    @Override
+    protected WebResource withParams( final WebResource resource ) {
+        WebResource withParams = super.withParams( resource );
+
+        if(customParams == null){
+            return withParams;
+        }
+
+        for(Entry<String, String> param : customParams.entrySet()){
+            withParams = withParams.queryParam( param.getKey(), param.getValue());
+        }
+
+        return withParams;
+    }
+
+
     /** Get entities in this collection. Cursor is optional */
     protected JsonNode getInternal() {
 
