@@ -15,6 +15,10 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.ext.MessageBodyWriter;
 import javax.ws.rs.ext.Provider;
+import javax.xml.bind.annotation.XmlRootElement;
+
+import org.codehaus.jackson.map.JsonSerializable;
+import org.codehaus.jackson.map.JsonSerializableWithType;
 
 import com.sun.jersey.api.json.JSONWithPadding;
 import com.sun.jersey.spi.MessageBodyWorkers;
@@ -41,7 +45,23 @@ public class TextToJsonSwapWriter implements MessageBodyWriter<JSONWithPadding> 
     @Override
     public boolean isWriteable( final Class<?> type, final Type genericType, final Annotation[] annotations,
                                 final MediaType mediaType ) {
-        return true;
+
+        //this should only map no media type, or text/html requests with json responses
+
+        final boolean mediaTypeCorrect = mediaType == null || MediaType.TEXT_HTML_TYPE.equals( mediaType );
+
+        if(!mediaTypeCorrect){
+            return false;
+        }
+
+
+        final boolean serializableAnnotation = type.getAnnotation( XmlRootElement.class ) != null;
+
+
+        final boolean jsonSerializable = JsonSerializableWithType.class.isAssignableFrom( type );
+
+
+        return serializableAnnotation || jsonSerializable;
     }
 
 
