@@ -334,7 +334,6 @@ public class ApplicationResourceIT extends AbstractRestIT {
 
 
     @Test
-    @Ignore("We need to fix JSPs in our test harness")
     public void authorizationCodeWithWrongCredentials() throws Exception {
         ApplicationInfo appInfo = setup.getMgmtSvc().getApplicationInfo( "test-organization/test-app" );
         String clientId = setup.getMgmtSvc().getClientIdForApplication( appInfo.getId() );
@@ -355,7 +354,6 @@ public class ApplicationResourceIT extends AbstractRestIT {
     }
 
 
-    @Ignore("Our JSPs in the test runtime are borked. TODO zznate")
     @Test
     public void authorizeWithInvalidClientIdRaisesError() throws Exception {
         String result =

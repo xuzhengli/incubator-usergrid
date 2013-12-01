@@ -405,7 +405,7 @@ public class MUUserResourceIT extends AbstractRestIT {
 
 
     @Test
-    @Ignore( "because of that jstl classloader error thing" )
+//    @Ignore( "because of that jstl classloader error thing" )
     public void checkPasswordReset() throws Exception {
 
         String email = "test@usergrid.com";
@@ -510,7 +510,7 @@ public class MUUserResourceIT extends AbstractRestIT {
 
 
     @Test
-    @Ignore( "because of that jstl classloader error thing" )
+//    @Ignore( "because of that jstl classloader error thing" )
     public void checkPasswordChangeTime() throws Exception {
 
         String email = "test@usergrid.com";
