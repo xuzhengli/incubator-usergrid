@@ -402,9 +402,9 @@
     </dependency>
 
     <dependency>
-             <groupId>org.glassfish.web</groupId>
-             <artifactId>javax.servlet.jsp.jstl</artifactId>
-         </dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>jstl</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>com.sun.jersey.contribs</groupId>
@@ -509,11 +509,11 @@
       <scope>test</scope>
     </dependency>
 
-    <!--<dependency>-->
-      <!--<groupId>org.apache.tomcat</groupId>-->
-      <!--<artifactId>jasper</artifactId>-->
-      <!--<scope>test</scope>-->
-    <!--</dependency>-->
+    <dependency>
+      <groupId>org.apache.tomcat</groupId>
+      <artifactId>jasper</artifactId>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.apache.tomcat</groupId>
