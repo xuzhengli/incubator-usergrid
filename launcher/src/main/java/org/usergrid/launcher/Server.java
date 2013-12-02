@@ -235,8 +235,8 @@ public class Server implements org.springframework.context.ApplicationContextAwa
             return;
         }
 
-        org.apache.jasper.runtime.JspFactoryImpl factory = new org.apache.jasper.runtime.JspFactoryImpl();
-        javax.servlet.jsp.JspFactory.setDefaultFactory( factory );
+//        org.apache.jasper.runtime.JspFactoryImpl factory = new org.apache.jasper.runtime.JspFactoryImpl();
+//        javax.servlet.jsp.JspFactory.setDefaultFactory( factory );
 
         mapServlet( "jsp.WEB_002dINF.jsp.org.usergrid.rest.TestResource.error_jsp",
                 "/WEB-INF/jsp/org/usergrid/rest/TestResource/error.jsp" );
