@@ -1067,6 +1067,13 @@
       </dependency>
 
       <dependency>
+        <groupId>org.apache.tomcat</groupId>
+        <artifactId>tomcat-jsp-api</artifactId>
+        <scope>test</scope>
+        <version>${tomcat-version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.jvnet.mock-javamail</groupId>
         <artifactId>mock-javamail</artifactId>
         <version>1.9</version>
@@ -1266,22 +1273,7 @@
         <version>1.27</version>
       </dependency>
 
-      <dependency>
-        <groupId>org.apache.tomcat</groupId>
-        <artifactId>jasper</artifactId>
-        <version>${tomcat-version}</version>
-        <exclusions>
-          <exclusion>
-            <artifactId>servlet-api</artifactId>
-            <groupId>org.apache.tomcat</groupId>
-          </exclusion>
 
-          <exclusion>
-            <groupId>org.apache.tomcat</groupId>
-            <artifactId>juli</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
 
 
 
