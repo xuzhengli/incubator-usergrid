@@ -130,4 +130,12 @@ public class HectorLockManagerImpl implements LockManager {
     public void setCluster( Cluster cluster ) {
         this.cluster = cluster;
     }
+
+
+	/**
+	 * @param consistencyLevelPolicy the consistencyLevelPolicy to set
+	 */
+	public void setConsistencyLevelPolicy(ConsistencyLevelPolicy consistencyLevelPolicy) {
+		this.consistencyLevelPolicy = consistencyLevelPolicy;
+	}
 }
