@@ -474,6 +474,8 @@
     </dependency>
 
 
+
+
     <!-- Core Persistence deps -->
     <dependency>
 	    <groupId>org.apache.usergrid</groupId>
@@ -506,18 +508,20 @@
 	    <type>jar</type>
     </dependency>
 
-    <!--<dependency>-->
-      <!--<artifactId>lucene-core</artifactId>-->
-      <!--<groupId>org.apache.lucene</groupId>-->
-      <!--<type>jar</type>-->
-      <!--<version>4.7.2</version>-->
-    <!--</dependency>-->
 
     <dependency>
         <groupId>org.jukito</groupId>
         <artifactId>jukito</artifactId>
         <version>1.4-UG</version>
         <scope>test</scope>
+    </dependency>
+
+    <!-- yammer test metrics -->
+    <dependency>
+        <groupId>com.codahale.metrics</groupId>
+        <artifactId>metrics-core</artifactId>
+        <version>3.0.2</version>
+      <scope>test</scope>
     </dependency>
 
 
