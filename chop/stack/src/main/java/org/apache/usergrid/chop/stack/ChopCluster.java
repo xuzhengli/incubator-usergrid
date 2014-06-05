@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -16,27 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.usergrid.persistence.core.consistency;
+package org.apache.usergrid.chop.stack;
 
 
-import java.io.Serializable;
-
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-
-
-@Singleton
-public class LocalTimeoutQueueFactory implements TimeoutQueueFactory {
-
-    private final TimeService timeService;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 
-    @Inject
-    public LocalTimeoutQueueFactory( final TimeService timeService ) {this.timeService = timeService;}
+/**
+ * This is used in chopped test classes to inject runtime cluster information.
+ */
+@Retention( RetentionPolicy.RUNTIME )
+@Target( ElementType.FIELD )
+public @interface ChopCluster {
 
-
-    @Override
-    public <T extends Serializable> TimeoutQueue<T> getQueue( final Class<T> eventType ) {
-        return new LocalTimeoutQueue(timeService);
-    }
+    /**
+     * This should be one of the names defined inside stack.json
+     *
+     * @return  Name of the defined cluster to be injected
+     */
+    String name();
 }

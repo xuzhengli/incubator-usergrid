@@ -16,14 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.usergrid.persistence.collection.mvcc.stage;
 
-package org.apache.usergrid.persistence.core.consistency;
 
-public class DefaultTimeService implements TimeService {
+import org.apache.usergrid.persistence.collection.CollectionScope;
+import org.apache.usergrid.persistence.collection.mvcc.entity.MvccEntity;
+import org.apache.usergrid.persistence.model.entity.Id;
 
-    @Override
-    public long getCurrentTime() {
-        return System.currentTimeMillis();
+
+/**
+ * Simple event to signal entity update
+ */
+public class EntityUpdateEvent extends CollectionIoEvent<Id> {
+
+    public EntityUpdateEvent( final CollectionScope context, final Id event ) {
+        super( context, event );
     }
-    
 }
