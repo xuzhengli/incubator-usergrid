@@ -21,9 +21,12 @@ package org.apache.usergrid.persistence.core.hystrix;
 
 
 import com.netflix.hystrix.HystrixCommandGroupKey;
+import com.netflix.hystrix.HystrixCommandProperties;
 import com.netflix.hystrix.HystrixObservableCommand;
 
 import rx.Observable;
+import rx.Scheduler;
+import rx.schedulers.Schedulers;
 
 
 /**
@@ -59,21 +62,30 @@ public class HystrixObservable {
      */
     public static <T> Observable<T> user( final Observable<T> observable ) {
 
-//        HystrixCommandProperties.Setter hcpSetter = HystrixCommandProperties.Setter()
-//            .withExecutionIsolationStrategy(HystrixCommandProperties.ExecutionIsolationStrategy.THREAD);
-//
-//        final HystrixObservableCommand.Setter setter = HystrixObservableCommand.Setter
-//            .withGroupKey(USER_GROUP)
-//            .andCommandPropertiesDefaults(hcpSetter);
-
         return new HystrixObservableCommand<T>( USER_GROUP ) {
 
             @Override
             protected Observable<T> run() {
                 return observable;
             }
-        }.observe();
+        }.toObservable(Schedulers.io() );
     }
+
+
+    /**
+      * Wrap the observable in the timeout for user facing operation.
+      * This is for user reads and deletes.
+      */
+     public static <T> Observable<T> user( final T toObserve ) {
+
+         return new HystrixObservableCommand<T>( USER_GROUP ) {
+
+             @Override
+             protected Observable<T> run() {
+                 return Observable.from( toObserve );
+             }
+         }.toObservable(Schedulers.io() );
+     }
 
 
     /**
@@ -87,6 +99,20 @@ public class HystrixObservable {
             protected Observable<T> run() {
                 return observable;
             }
-        }.observe();
+        }.toObservable( Schedulers.io());
     }
+
+    /**
+       * Wrap the observable in the timeout for asynchronous operations.
+       * This is for compaction and cleanup processing.
+       */
+      public static <T> Observable<T> async( final T toObserve ) {
+          return new HystrixObservableCommand<T>( ASYNC_GROUP ) {
+
+              @Override
+              protected Observable<T> run() {
+                  return Observable.from( toObserve );
+              }
+          }.toObservable( Schedulers.io());
+      }
 }

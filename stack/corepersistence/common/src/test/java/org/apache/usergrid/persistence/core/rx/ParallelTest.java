@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.usergrid.persistence.collection.rx;
+package org.apache.usergrid.persistence.core.rx;
 
 
 import java.util.ArrayList;
@@ -28,10 +28,11 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.usergrid.persistence.core.hystrix.HystrixObservable;
+
 import rx.Observable;
 import rx.functions.Func1;
 import rx.functions.FuncN;
-import rx.schedulers.Schedulers;
 
 import static org.junit.Assert.assertEquals;
 
@@ -55,7 +56,8 @@ public class ParallelTest {
     /**
      * An example of how an observable that requires a "fan out" then join should execute.
      */
-    @Test(timeout = 5000)
+//    @Test(timeout = 5000)
+    @Test
     public void concurrentFunctions() {
         final String input = "input";
 
@@ -64,20 +66,7 @@ public class ParallelTest {
         final int expected = size - 1;
 
 
-        // QUESTION Using this thread blocks indefinitely.  The execution of the Hystrix command 
-         // happens on the computation Thread if this is used
-
-        //        final Scheduler scheduler = Schedulers.threadPoolForComputation();
-
-        //use the I/O scheduler to allow enough thread, otherwise our pool will be the same size as the # of cores
-
-
         //set our size equal
-//        ConfigurationManager.getConfigInstance().setProperty( THREAD_POOL_SIZE, size );
-        //        ConfigurationManager.getConfigInstance().setProperty( THREAD_POOL_SIZE, 10 );
-
-        //reject requests we have to queue
-//        ConfigurationManager.getConfigInstance().setProperty( THREAD_POOL_QUEUE, -1 );
 
         //latch used to make each thread block to prove correctness
         final CountDownLatch latch = new CountDownLatch( size );
@@ -90,7 +79,7 @@ public class ParallelTest {
          *  non blocking?
          */
 
-        final Observable<String> observable = Observable.from( input ).observeOn( Schedulers.io() );
+        final Observable<String> observable = HystrixObservable.user( input );
 
 
         Observable<Integer> thing = observable.flatMap( new Func1<String, Observable<Integer>>() {
@@ -113,7 +102,7 @@ public class ParallelTest {
                     /**
                      * QUESTION: Should this again be the process thread, not the I/O
                      */
-                    Observable<String> newObservable = Observable.from( input ).subscribeOn( Schedulers.io() );
+                    Observable<String> newObservable = HystrixObservable.user( input );
 
                     Observable<Integer> transformed = newObservable.map( new Func1<String, Integer>() {
 
@@ -124,24 +113,6 @@ public class ParallelTest {
 
                             logger.info( "Invoking parallel task in thread {}", threadName );
 
-//                            /**
-//                             * Simulate a Hystrix command making a call to an external resource.  Invokes
-//                             * the Hystrix command immediately as the function is invoked.  This is currently
-//                             * how we have to call Cassandra.
-//                             *
-//                             * TODO This needs to be re-written and evaluated once this PR is released https://github.com/Netflix/Hystrix/pull/209
-//                             */
-//                            return new HystrixCommand<Integer>( GROUP_KEY ) {
-//                                @Override
-//                                protected Integer run() throws Exception {
-//
-//                                    final String threadName = Thread.currentThread().getName();
-//
-//                                    logger.info( "Invoking hystrix task in thread {}", threadName );
-
-
-
-
                                     latch.countDown();
 
                                     try {
@@ -150,12 +121,6 @@ public class ParallelTest {
                                     catch ( InterruptedException e ) {
                                         throw new RuntimeException( "Interrupted", e );
                                     }
-
-//                                    assertTrue( isExecutedInThread() );
-//
-//                                    return index;
-//                                }
-//                            }.execute();
 
                             return index;
                         }
