@@ -20,13 +20,12 @@
 package org.apache.usergrid.persistence.core.hystrix;
 
 
+import com.netflix.config.ConfigurationManager;
 import com.netflix.hystrix.HystrixCommandGroupKey;
 import com.netflix.hystrix.HystrixCommandProperties;
 import com.netflix.hystrix.HystrixObservableCommand;
 
 import rx.Observable;
-import rx.Scheduler;
-import rx.schedulers.Schedulers;
 
 
 /**
@@ -35,25 +34,37 @@ import rx.schedulers.Schedulers;
  */
 public class HystrixObservable {
 
-//    static {
-//        // TODO: can't we put these in the our normal properties file?
-//        ConfigurationManager.getConfigInstance()
-//            .setProperty("hystrix.command.default.execution.isolation.strategy","THREAD");
-//        ConfigurationManager.getConfigInstance()
-//            .setProperty("hystrix.threadpool.default.coreSize", 1032);
-//    }
+    static {
+        // TODO: can't we put these in the our normal properties file?
+        ConfigurationManager.getConfigInstance()
+            .setProperty("hystrix.command.default.execution.isolation.strategy","THREAD");
+        ConfigurationManager.getConfigInstance()
+            .setProperty("hystrix.threadpool.default.coreSize", 1032);
+    }
 
     /**
      * Command group used for realtime user commands
      */
-    private static final HystrixCommandGroupKey USER_GROUP = 
-            HystrixCommandGroupKey.Factory.asKey( "user" );
 
+    private static final HystrixCommandProperties.Setter
+            USER_SETTINGS = HystrixCommandProperties.Setter().withCircuitBreakerEnabled( true ).withExecutionIsolationThreadTimeoutInMilliseconds( 5000 ).withCircuitBreakerRequestVolumeThreshold( 10 ).withExecutionIsolationStrategy(
+            HystrixCommandProperties.ExecutionIsolationStrategy.THREAD );
+
+
+    private static final HystrixObservableCommand.Setter
+            USER_GROUP_SETTINGS = HystrixObservableCommand.Setter.withGroupKey( HystrixCommandGroupKey.Factory.asKey( "user" ) ).andCommandPropertiesDefaults(
+            USER_SETTINGS );
     /**
      * Command group for asynchronous operations
      */
-    private static final HystrixCommandGroupKey ASYNC_GROUP = 
-            HystrixCommandGroupKey.Factory.asKey( "async" );
+    private static final HystrixCommandProperties.Setter
+             ASYNC_SETTINGS = HystrixCommandProperties.Setter().withCircuitBreakerEnabled( true ).withExecutionIsolationThreadTimeoutInMilliseconds( 30000 ).withCircuitBreakerRequestVolumeThreshold( 10 ).withExecutionIsolationStrategy(
+             HystrixCommandProperties.ExecutionIsolationStrategy.THREAD );
+
+
+     private static final HystrixObservableCommand.Setter
+             ASYNC_GROUP_SETTINGS = HystrixObservableCommand.Setter.withGroupKey( HystrixCommandGroupKey.Factory.asKey( "user" ) ).andCommandPropertiesDefaults(
+             ASYNC_SETTINGS );
 
 
     /**
@@ -62,13 +73,13 @@ public class HystrixObservable {
      */
     public static <T> Observable<T> user( final Observable<T> observable ) {
 
-        return new HystrixObservableCommand<T>( USER_GROUP ) {
+        return new HystrixObservableCommand<T>( USER_GROUP_SETTINGS ) {
 
             @Override
             protected Observable<T> run() {
                 return observable;
             }
-        }.toObservable(Schedulers.io() );
+        }.toObservable();
     }
 
 
@@ -78,13 +89,13 @@ public class HystrixObservable {
       */
      public static <T> Observable<T> user( final T toObserve ) {
 
-         return new HystrixObservableCommand<T>( USER_GROUP ) {
+         return new HystrixObservableCommand<T>( USER_GROUP_SETTINGS ) {
 
              @Override
              protected Observable<T> run() {
                  return Observable.from( toObserve );
              }
-         }.toObservable(Schedulers.io() );
+         }.toObservable( );
      }
 
 
@@ -93,13 +104,13 @@ public class HystrixObservable {
      * This is for compaction and cleanup processing.
      */
     public static <T> Observable<T> async( final Observable<T> observable ) {
-        return new HystrixObservableCommand<T>( ASYNC_GROUP ) {
+        return new HystrixObservableCommand<T>( ASYNC_GROUP_SETTINGS ) {
 
             @Override
             protected Observable<T> run() {
                 return observable;
             }
-        }.toObservable( Schedulers.io());
+        }.toObservable();
     }
 
     /**
@@ -107,12 +118,12 @@ public class HystrixObservable {
        * This is for compaction and cleanup processing.
        */
       public static <T> Observable<T> async( final T toObserve ) {
-          return new HystrixObservableCommand<T>( ASYNC_GROUP ) {
+          return new HystrixObservableCommand<T>( ASYNC_GROUP_SETTINGS ) {
 
               @Override
               protected Observable<T> run() {
                   return Observable.from( toObserve );
               }
-          }.toObservable( Schedulers.io());
+          }.toObservable( );
       }
 }
