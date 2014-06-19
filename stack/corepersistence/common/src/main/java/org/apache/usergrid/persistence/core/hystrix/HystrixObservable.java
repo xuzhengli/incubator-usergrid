@@ -63,7 +63,7 @@ public class HystrixObservable {
 
 
      private static final HystrixObservableCommand.Setter
-             ASYNC_GROUP_SETTINGS = HystrixObservableCommand.Setter.withGroupKey( HystrixCommandGroupKey.Factory.asKey( "user" ) ).andCommandPropertiesDefaults(
+             ASYNC_GROUP_SETTINGS = HystrixObservableCommand.Setter.withGroupKey( HystrixCommandGroupKey.Factory.asKey( "async" ) ).andCommandPropertiesDefaults(
              ASYNC_SETTINGS );
 
 

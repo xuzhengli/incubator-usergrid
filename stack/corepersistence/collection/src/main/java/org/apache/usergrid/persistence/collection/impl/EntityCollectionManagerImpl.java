@@ -162,7 +162,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
         Preconditions.checkNotNull( entityId.getUuid(), "Entity id is required in this stage" );
         Preconditions.checkNotNull( entityId.getType(), "Entity type is required in this stage" );
 
-        return Observable.from( new CollectionIoEvent<Id>( collectionScope, entityId ) ).subscribeOn( Schedulers.io() )
+        return HystrixObservable.user( new CollectionIoEvent<Id>( collectionScope, entityId ) )
                          .map( markStart ).map( markCommit );
     }
 
@@ -174,7 +174,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
         Preconditions.checkNotNull( entityId.getUuid(), "Entity id uuid required in load stage" );
         Preconditions.checkNotNull( entityId.getType(), "Entity id type required in load stage" );
 
-        return Observable.from( new CollectionIoEvent<Id>( collectionScope, entityId ) ).subscribeOn( Schedulers.io() )
+        return HystrixObservable.user( new CollectionIoEvent<Id>( collectionScope, entityId ) )
                          .map( load );
     }
 
@@ -205,7 +205,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
 
                //we an update, signal the fix
 
-                HystrixObservable.async( Observable.from( new CollectionIoEvent<Id>(collectionScope, entityId ) ).map( load ).subscribeOn( Schedulers.io() ) ).subscribe();
+                HystrixObservable.async( new CollectionIoEvent<Id>(collectionScope, entityId )).map( load ).subscribe();
 
 
             }
@@ -215,7 +215,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
     // fire the stages
     public Observable<CollectionIoEvent<MvccEntity>> stageRunner( CollectionIoEvent<Entity> writeData,WriteStart writeState ) {
 
-        return Observable.from( writeData ).subscribeOn( Schedulers.io() ).map( writeState ).flatMap(
+        return HystrixObservable.user( writeData ).map( writeState ).flatMap(
                 new Func1<CollectionIoEvent<MvccEntity>, Observable<CollectionIoEvent<MvccEntity>>>() {
 
                     @Override
@@ -223,13 +223,13 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
                             final CollectionIoEvent<MvccEntity> mvccEntityCollectionIoEvent ) {
 
                         Observable<CollectionIoEvent<MvccEntity>> unique =
-                                Observable.from( mvccEntityCollectionIoEvent ).subscribeOn( Schedulers.io() )
+                                Observable.from( mvccEntityCollectionIoEvent )
                                           .flatMap( writeVerifyUnique );
 
 
                         // optimistic verification
                         Observable<CollectionIoEvent<MvccEntity>> optimistic =
-                                Observable.from( mvccEntityCollectionIoEvent ).subscribeOn( Schedulers.io() )
+                                Observable.from( mvccEntityCollectionIoEvent )
                                           .map( writeOptimisticVerify );
 
 

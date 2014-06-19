@@ -28,6 +28,7 @@ import javax.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.usergrid.persistence.core.hystrix.HystrixObservable;
 import org.apache.usergrid.persistence.core.rx.ObservableIterator;
 import org.apache.usergrid.persistence.core.rx.OrderedMerge;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
@@ -85,33 +86,34 @@ public class MergedEdgeReaderImpl implements MergedEdgeReader {
      * observable
      */
     public Observable<MarkedEdge> getEdgesFromSource( final ApplicationScope scope, final SearchByEdgeType edgeType ) {
-        Observable<SourceAwareMarkedEdge> commitLog =
+        Observable<SourceAwareMarkedEdge> commitLog =  HystrixObservable.user(
                 Observable.create( new ObservableIterator<MarkedEdge>( "getEdgesFromSourceCommitLog" ) {
                     @Override
                     protected Iterator<MarkedEdge> getIterator() {
                         return commitLogSerialization.getEdgesFromSource( scope, edgeType );
                     }
-                } ).subscribeOn( Schedulers.io() ).map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
+                } ).map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
                     @Override
                     public SourceAwareMarkedEdge call( final MarkedEdge markedEdge ) {
                         return new SourceAwareMarkedEdge( markedEdge, commitLogSerialization );
                     }
-                } );
+                } ) );
 
 
         Observable<SourceAwareMarkedEdge> permanent =
+                HystrixObservable.user(
                 Observable.create( new ObservableIterator<MarkedEdge>( "getEdgesFromSourceStorage" ) {
                     @Override
                     protected Iterator<MarkedEdge> getIterator() {
                         return permanentSerialization.getEdgesFromSource( scope, edgeType );
                     }
-                } ).subscribeOn( Schedulers.io() ).subscribeOn( Schedulers.io() )
+                } )
                           .map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
                               @Override
                               public SourceAwareMarkedEdge call( final MarkedEdge markedEdge ) {
                                   return new SourceAwareMarkedEdge( markedEdge, permanentSerialization );
                               }
-                          } );
+                          } ));
 
         return OrderedMerge
                 .orderedMerge( new SourceEdgeComparator( commitLogSerialization ), graphFig.getScanPageSize() / 2,
@@ -123,32 +125,36 @@ public class MergedEdgeReaderImpl implements MergedEdgeReader {
                                                                   final SearchByIdType edgeType ) {
 
         Observable<SourceAwareMarkedEdge> commitLog =
+                HystrixObservable.user(
                 Observable.create( new ObservableIterator<MarkedEdge>( "getEdgesFromSourceByTargetTypeCommitLog" ) {
                     @Override
                     protected Iterator<MarkedEdge> getIterator() {
                         return commitLogSerialization.getEdgesFromSourceByTargetType( scope, edgeType );
                     }
-                } ).subscribeOn( Schedulers.io() ).map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
+                } ).map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
                     @Override
                     public SourceAwareMarkedEdge call( final MarkedEdge markedEdge ) {
                         return new SourceAwareMarkedEdge( markedEdge, commitLogSerialization );
                     }
-                } );
+                } )
+                                      );
 
 
         Observable<SourceAwareMarkedEdge> permanent =
+                HystrixObservable.user(
                 Observable.create( new ObservableIterator<MarkedEdge>( "getEdgesFromSourceByTargetTypeStorage" ) {
                     @Override
                     protected Iterator<MarkedEdge> getIterator() {
                         return permanentSerialization.getEdgesFromSourceByTargetType( scope, edgeType );
                     }
-                } ).subscribeOn( Schedulers.io() ).subscribeOn( Schedulers.io() )
+                } )
                           .map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
                               @Override
                               public SourceAwareMarkedEdge call( final MarkedEdge markedEdge ) {
                                   return new SourceAwareMarkedEdge( markedEdge, permanentSerialization );
                               }
-                          } );
+                          } )
+                                      );
 
         return OrderedMerge
                 .orderedMerge( new SourceEdgeComparator( commitLogSerialization ), graphFig.getScanPageSize() / 2,
@@ -157,33 +163,33 @@ public class MergedEdgeReaderImpl implements MergedEdgeReader {
 
 
     public Observable<MarkedEdge> getEdgesToTarget( final ApplicationScope scope, final SearchByEdgeType edgeType ) {
-        Observable<SourceAwareMarkedEdge> commitLog =
+        Observable<SourceAwareMarkedEdge> commitLog =   HystrixObservable.user(
                 Observable.create( new ObservableIterator<MarkedEdge>( "getEdgesToTargetCommitLog" ) {
                     @Override
                     protected Iterator<MarkedEdge> getIterator() {
                         return commitLogSerialization.getEdgesToTarget( scope, edgeType );
                     }
-                } ).subscribeOn( Schedulers.io() ).map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
+                } ).map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
                     @Override
                     public SourceAwareMarkedEdge call( final MarkedEdge markedEdge ) {
                         return new SourceAwareMarkedEdge( markedEdge, commitLogSerialization );
                     }
-                } );
+                } ));
 
 
-        Observable<SourceAwareMarkedEdge> permanent =
+        Observable<SourceAwareMarkedEdge> permanent =      HystrixObservable.user(
                 Observable.create( new ObservableIterator<MarkedEdge>( "getEdgesToTargetTypeStorage" ) {
                     @Override
                     protected Iterator<MarkedEdge> getIterator() {
                         return permanentSerialization.getEdgesToTarget( scope, edgeType );
                     }
-                } ).subscribeOn( Schedulers.io() ).subscribeOn( Schedulers.io() )
+                } )
                           .map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
                               @Override
                               public SourceAwareMarkedEdge call( final MarkedEdge markedEdge ) {
                                   return new SourceAwareMarkedEdge( markedEdge, permanentSerialization );
                               }
-                          } );
+                          } ));
 
         return OrderedMerge
                 .orderedMerge( new SourceEdgeComparator( commitLogSerialization ), graphFig.getScanPageSize() / 2,
@@ -193,33 +199,33 @@ public class MergedEdgeReaderImpl implements MergedEdgeReader {
 
     public Observable<MarkedEdge> getEdgesToTargetBySourceType( final ApplicationScope scope,
                                                                 final SearchByIdType edgeType ) {
-        Observable<SourceAwareMarkedEdge> commitLog =
+        Observable<SourceAwareMarkedEdge> commitLog = HystrixObservable.user(
                 Observable.create( new ObservableIterator<MarkedEdge>( "getEdgesToTargetBySourceTypeCommitLog" ) {
                     @Override
                     protected Iterator<MarkedEdge> getIterator() {
                         return commitLogSerialization.getEdgesToTargetBySourceType( scope, edgeType );
                     }
-                } ).subscribeOn( Schedulers.io() ).map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
+                } ).map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
                     @Override
                     public SourceAwareMarkedEdge call( final MarkedEdge markedEdge ) {
                         return new SourceAwareMarkedEdge( markedEdge, commitLogSerialization );
                     }
-                } );
+                } ));
 
 
-        Observable<SourceAwareMarkedEdge> permanent =
+        Observable<SourceAwareMarkedEdge> permanent =  HystrixObservable.user(
                 Observable.create( new ObservableIterator<MarkedEdge>( "getEdgesToTargetBySourceTypeStorage" ) {
                     @Override
                     protected Iterator<MarkedEdge> getIterator() {
                         return permanentSerialization.getEdgesToTargetBySourceType( scope, edgeType );
                     }
-                } ).subscribeOn( Schedulers.io() ).subscribeOn( Schedulers.io() )
+                } )
                           .map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
                               @Override
                               public SourceAwareMarkedEdge call( final MarkedEdge markedEdge ) {
                                   return new SourceAwareMarkedEdge( markedEdge, permanentSerialization );
                               }
-                          } );
+                          } ));
 
         return OrderedMerge
                 .orderedMerge( new SourceEdgeComparator( commitLogSerialization ), graphFig.getScanPageSize() / 2,
@@ -229,32 +235,32 @@ public class MergedEdgeReaderImpl implements MergedEdgeReader {
 
     @Override
     public Observable<MarkedEdge> getEdgeVersions( final ApplicationScope scope, final SearchByEdge search ) {
-        Observable<SourceAwareMarkedEdge> commitLog =
+        Observable<SourceAwareMarkedEdge> commitLog =  HystrixObservable.user(
                 Observable.create( new ObservableIterator<MarkedEdge>( "ggetEdgeVersionsCommitLog" ) {
                     @Override
                     protected Iterator<MarkedEdge> getIterator() {
                         return commitLogSerialization.getEdgeVersions( scope, search );
                     }
-                } ).subscribeOn( Schedulers.io() ).map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
+                } ).map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
                     @Override
                     public SourceAwareMarkedEdge call( final MarkedEdge markedEdge ) {
                         return new SourceAwareMarkedEdge( markedEdge, commitLogSerialization );
                     }
-                } );
+                } ));
 
 
-        Observable<SourceAwareMarkedEdge> permanent =
+        Observable<SourceAwareMarkedEdge> permanent = HystrixObservable.user(
                 Observable.create( new ObservableIterator<MarkedEdge>( "getEdgeVersionsStorage" ) {
                     @Override
                     protected Iterator<MarkedEdge> getIterator() {
                         return permanentSerialization.getEdgeVersions( scope, search );
                     }
-                } ).subscribeOn( Schedulers.io() ).map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
+                } ).map( new Func1<MarkedEdge, SourceAwareMarkedEdge>() {
                     @Override
                     public SourceAwareMarkedEdge call( final MarkedEdge markedEdge ) {
                         return new SourceAwareMarkedEdge( markedEdge, permanentSerialization );
                     }
-                } );
+                } ));
 
         return OrderedMerge
                 .orderedMerge( new EdgeVersionComparator( commitLogSerialization ), graphFig.getScanPageSize() / 2,

@@ -32,6 +32,7 @@ import org.apache.usergrid.persistence.collection.mvcc.entity.MvccEntity;
 import org.apache.usergrid.persistence.collection.mvcc.entity.MvccValidationUtils;
 import org.apache.usergrid.persistence.collection.mvcc.stage.CollectionIoEvent;
 import org.apache.usergrid.persistence.collection.serialization.SerializationFig;
+import org.apache.usergrid.persistence.core.hystrix.HystrixObservable;
 import org.apache.usergrid.persistence.model.entity.Entity;
 import org.apache.usergrid.persistence.model.field.Field;
 import org.slf4j.Logger;
@@ -101,43 +102,42 @@ public class WriteUniqueVerify implements
             // concurrent validations
             if ( field.isUnique() ) {
 
-                Observable<FieldUniquenessResult> result =  Observable.from( field )
-                        .subscribeOn( Schedulers.io() )
-                        .map(new Func1<Field,  FieldUniquenessResult>() {
+                Observable<FieldUniquenessResult> result =  HystrixObservable.async( field )
+                        .map( new Func1<Field, FieldUniquenessResult>() {
 
-                    @Override
-                    public FieldUniquenessResult call(Field field ) {
+                            @Override
+                            public FieldUniquenessResult call( Field field ) {
 
-                        // use write-first then read strategy
-                        UniqueValue written = new UniqueValueImpl( 
-                            ioevent.getEntityCollection(), field, entity.getId(), entity.getVersion() );
+                                // use write-first then read strategy
+                                UniqueValue written =
+                                        new UniqueValueImpl( ioevent.getEntityCollection(), field, entity.getId(),
+                                                entity.getVersion() );
 
-                        // use TTL in case something goes wrong before entity is finally committed
-                        MutationBatch mb = uniqueValueStrat.write( written, serializationFig.getTimeout() );
+                                // use TTL in case something goes wrong before entity is finally committed
+                                MutationBatch mb = uniqueValueStrat.write( written, serializationFig.getTimeout() );
 
-                        try {
-                            mb.execute();
-                        }
-                        catch ( ConnectionException ex ) {
-                            throw new WriteUniqueVerifyException( 
-                                    mvccEntity, ioevent.getEntityCollection(),
-                                    "Error writing unique value " + field.toString(), ex );
-                        }
+                                try {
+                                    mb.execute();
+                                }
+                                catch ( ConnectionException ex ) {
+                                    throw new WriteUniqueVerifyException( mvccEntity, ioevent.getEntityCollection(),
+                                            "Error writing unique value " + field.toString(), ex );
+                                }
 
-                        // does the database value match what we wrote?
-                        UniqueValue loaded;
-                        try {
-                            loaded = uniqueValueStrat.load( ioevent.getEntityCollection(), field );
-                        }
-                        catch ( ConnectionException ex ) {
-                            throw new WriteUniqueVerifyException( mvccEntity, ioevent.getEntityCollection(),
-                                    "Error verifying write", ex );
-                        }
+                                // does the database value match what we wrote?
+                                UniqueValue loaded;
+                                try {
+                                    loaded = uniqueValueStrat.load( ioevent.getEntityCollection(), field );
+                                }
+                                catch ( ConnectionException ex ) {
+                                    throw new WriteUniqueVerifyException( mvccEntity, ioevent.getEntityCollection(),
+                                            "Error verifying write", ex );
+                                }
 
-                        return new FieldUniquenessResult( 
-                            field, loaded.getEntityId().equals( written.getEntityId() ) );
-                    }
-                } );
+                                return new FieldUniquenessResult( field,
+                                        loaded.getEntityId().equals( written.getEntityId() ) );
+                            }
+                        } );
 
                 fields.add(result);
             }

@@ -27,6 +27,8 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.usergrid.persistence.core.hystrix.HystrixObservable;
+
 import rx.Observable;
 import rx.Subscriber;
 import rx.functions.Func1;
@@ -104,17 +106,16 @@ public class TestCount {
         /**
          * Simulates occasional sleeps while we fetch something over the network
          */
-        return Observable.create( new Observable.OnSubscribe<Integer>() {
+        return   HystrixObservable.user( Observable.create( new Observable.OnSubscribe<Integer>() {
             @Override
             public void call( final Subscriber<? super Integer> subscriber ) {
 
                 final int size = values.size();
 
-                for(int i = 0; i < size; i ++){
+                for ( int i = 0; i < size; i++ ) {
 
 
-
-                    if(i%1000 == 0){
+                    if ( i % 1000 == 0 ) {
                         //simulate network fetch
                         try {
                             Thread.sleep( 250 );
@@ -127,7 +128,7 @@ public class TestCount {
 
                     final Integer value = values.get( i );
 
-                    log.info( "Emitting {}", value  );
+                    log.info( "Emitting {}", value );
 
 
                     subscriber.onNext( value );
@@ -137,7 +138,7 @@ public class TestCount {
 
                 //purposefully no error handling here
             }
-        } ).subscribeOn( Schedulers.io() );
+        } ));
 
     }
 }

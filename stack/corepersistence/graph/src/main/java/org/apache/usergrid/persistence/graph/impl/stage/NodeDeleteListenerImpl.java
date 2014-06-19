@@ -28,6 +28,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.usergrid.persistence.core.hystrix.HystrixObservable;
 import org.apache.usergrid.persistence.core.rx.ObservableIterator;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.graph.GraphFig;
@@ -163,27 +164,28 @@ public class NodeDeleteListenerImpl implements NodeDeleteListener  {
          */
 
         //get all edges pointing to the target node and buffer then into groups for deletion
-        Observable<MarkedEdge> targetEdges =
-                getEdgesTypesToTarget( scope, new SimpleSearchEdgeType( node, null, null ) ).subscribeOn( Schedulers.io() )
+        Observable<MarkedEdge> targetEdges =      HystrixObservable
+                        .async( getEdgesTypesToTarget( scope, new SimpleSearchEdgeType( node, null, null ) )
                         .flatMap( new Func1<String, Observable<MarkedEdge>>() {
                             @Override
                             public Observable<MarkedEdge> call( final String edgeType ) {
                                 return mergedEdgeReader.getEdgesToTarget( scope,
                                         new SimpleSearchByEdgeType( node, edgeType, maxVersion, null ) );
                             }
-                        } );
+                        } ));
 
 
         //get all edges pointing to the source node and buffer them into groups for deletion
         Observable<MarkedEdge> sourceEdges =
-                getEdgesTypesFromSource( scope, new SimpleSearchEdgeType( node, null, null ) ).subscribeOn( Schedulers.io() )
+                HystrixObservable.async( 
+                getEdgesTypesFromSource( scope, new SimpleSearchEdgeType( node, null, null ) )
                         .flatMap( new Func1<String, Observable<MarkedEdge>>() {
                             @Override
                             public Observable<MarkedEdge> call( final String edgeType ) {
                                 return mergedEdgeReader.getEdgesFromSource( scope,
                                         new SimpleSearchByEdgeType( node, edgeType, maxVersion, null ) );
                             }
-                        } );
+                        } ));
 
         //merge both source and target into 1 observable.  We'll need to check them all regardless of order
         return Observable.merge( targetEdges, sourceEdges )

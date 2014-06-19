@@ -138,7 +138,7 @@ public class GraphManagerImpl implements GraphManager {
         final MarkedEdge markedEdge = new SimpleMarkedEdge( edge, false );
 
         return HystrixObservable
-                .user( Observable.from( markedEdge ).subscribeOn( Schedulers.io() ).map( new Func1<MarkedEdge, Edge>() {
+                .user( markedEdge ).map( new Func1<MarkedEdge, Edge>() {
                     @Override
                     public Edge call( final MarkedEdge edge ) {
 
@@ -162,11 +162,11 @@ public class GraphManagerImpl implements GraphManager {
 
 
                         //subscribe and execute the action
-                        HystrixObservable.async( edgeWriteCompact.compact( scope, edge, timestamp )).subscribeOn( Schedulers.io() ).subscribe( edgeWriteSubcriber );
+                        HystrixObservable.async( edgeWriteCompact.compact( scope, edge, timestamp )).subscribe( edgeWriteSubcriber );
 
                         return edge;
                     }
-                } ) );
+                } );
     }
 
 
@@ -179,7 +179,7 @@ public class GraphManagerImpl implements GraphManager {
 
         return
                 HystrixObservable
-                .user( Observable.from( markedEdge ).subscribeOn( Schedulers.io() ).map( new Func1<MarkedEdge, Edge>() {
+                .user( markedEdge ).map( new Func1<MarkedEdge, Edge>() {
                     @Override
                     public Edge call( final MarkedEdge edge ) {
 
@@ -198,19 +198,19 @@ public class GraphManagerImpl implements GraphManager {
                         }
 
 
-                        HystrixObservable.async( edgeDeleteListener.receive( scope, markedEdge, timestamp )).subscribeOn( Schedulers.io() ).subscribe( edgeDeleteSubcriber );
+                        HystrixObservable.async( edgeDeleteListener.receive( scope, markedEdge, timestamp )).subscribe( edgeDeleteSubcriber );
 
 
                         return edge;
                     }
-                } ) );
+                } ) ;
     }
 
 
     @Override
     public Observable<Id> deleteNode( final Id node, final long timestamp ) {
         return HystrixObservable
-                .user( Observable.from( node ).subscribeOn( Schedulers.io() ).map( new Func1<Id, Id>() {
+                .user(node).map( new Func1<Id, Id>() {
                     @Override
                     public Id call( final Id id ) {
 
@@ -231,11 +231,11 @@ public class GraphManagerImpl implements GraphManager {
                             throw new RuntimeException( "Unable to connect to cassandra", e );
                         }
 
-                        HystrixObservable.async(nodeDeleteListener.receive(scope, id, eventTimestamp  )).subscribeOn( Schedulers.io() ).subscribe( nodeDelete );
+                        HystrixObservable.async(nodeDeleteListener.receive(scope, id, eventTimestamp  )).subscribe( nodeDelete );
 
                         return id;
                     }
-                } ) );
+                } );
     }
 
 
