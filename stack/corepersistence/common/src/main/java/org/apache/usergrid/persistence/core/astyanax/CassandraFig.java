@@ -56,6 +56,10 @@ public interface CassandraFig extends GuicyFig {
     @Default( "9160" )
     int getThriftPort();
 
+    @Key("cassandra.native.port")
+    @Default( "9042" )
+    int getNativePort();
+
     @Key( "cassandra.connections" )
     @Default( "100" )
     int getConnections();

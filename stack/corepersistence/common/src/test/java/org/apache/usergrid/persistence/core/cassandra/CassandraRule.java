@@ -4,7 +4,6 @@ package org.apache.usergrid.persistence.core.cassandra;
 import com.google.common.io.Files;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.netflix.astyanax.test.EmbeddedCassandra;
 import com.netflix.config.ConfigurationManager;
 
 import java.io.File;
@@ -90,7 +89,7 @@ public class CassandraRule extends EnvironResource {
             try {
                 LOG.info( "Starting cassandra" );
 
-                cass = new EmbeddedCassandra( dataDir, "Usergrid", 9160,
+                cass = new EmbeddedCassandra( dataDir, "Usergrid", cassandraFig.getThriftPort(), cassandraFig.getNativePort(),
                         AvailablePortFinder.getNextAvailable() );
                 cass.start();
 
