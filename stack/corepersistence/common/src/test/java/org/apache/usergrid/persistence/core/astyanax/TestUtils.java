@@ -68,7 +68,7 @@ public class TestUtils {
 
     public static <K, C> void createColumnFamiliy(final Keyspace keyspace, final ColumnFamily<K, C> columnFamily, final Map<String, Object> options){
         try{
-            keyspace.createColumnFamily( columnFamily, new HashMap<String, Object>() );
+            keyspace.createColumnFamily( columnFamily, options );
         }catch(Exception e){
            log.error( "Error on creating column family, ignoring" , e);
         }

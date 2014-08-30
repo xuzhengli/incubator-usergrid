@@ -23,6 +23,7 @@ import org.safehaus.guicyfig.GuicyFigModule;
 
 import org.apache.usergrid.persistence.core.consistency.TimeService;
 import org.apache.usergrid.persistence.core.consistency.TimeServiceImpl;
+import org.apache.usergrid.persistence.core.migration.DatastaxMigration;
 import org.apache.usergrid.persistence.core.migration.Migration;
 import org.apache.usergrid.persistence.graph.GraphFig;
 import org.apache.usergrid.persistence.graph.GraphManager;
@@ -135,14 +136,20 @@ public class GraphModule extends AbstractModule {
 
         //do multibindings for migrations
         Multibinder<Migration> migrationBinding = Multibinder.newSetBinder( binder(), Migration.class );
-        migrationBinding.addBinding().to( Key.get( NodeSerialization.class ) );
-        migrationBinding.addBinding().to( Key.get( EdgeMetadataSerialization.class ) );
+
 
         //bind each singleton to the multi set.  Otherwise we won't migrate properly
         migrationBinding.addBinding().to( Key.get( EdgeColumnFamilies.class ) );
 
         migrationBinding.addBinding().to( Key.get( EdgeShardSerialization.class ) );
         migrationBinding.addBinding().to( Key.get( NodeShardCounterSerialization.class ) );
+
+
+        Multibinder<DatastaxMigration>
+                dsMigrationBinding = Multibinder.newSetBinder( binder(), DatastaxMigration.class );
+
+        dsMigrationBinding.addBinding().to( Key.get( NodeSerialization.class ) );
+        dsMigrationBinding.addBinding().to( Key.get( EdgeMetadataSerialization.class ) );
     }
 }
 

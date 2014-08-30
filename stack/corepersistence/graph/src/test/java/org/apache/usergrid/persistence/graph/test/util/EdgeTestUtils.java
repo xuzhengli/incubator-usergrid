@@ -202,7 +202,7 @@ public class EdgeTestUtils {
      * Create the search by Id type
      */
     public static SimpleSearchIdType createSearchIdType( final Id sourceId, final String type, final String last ) {
-        return new SimpleSearchIdType( sourceId, type, null, last );
+        return new SimpleSearchIdType( sourceId, type, null,  last );
     }
 
 

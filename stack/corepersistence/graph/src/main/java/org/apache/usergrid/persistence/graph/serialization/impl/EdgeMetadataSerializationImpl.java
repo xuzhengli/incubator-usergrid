@@ -22,21 +22,12 @@ package org.apache.usergrid.persistence.graph.serialization.impl;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.UUID;
 
-import org.apache.cassandra.db.marshal.BytesType;
-import org.apache.cassandra.db.marshal.UTF8Type;
-
-import org.apache.usergrid.persistence.core.astyanax.CassandraConfig;
-import org.apache.usergrid.persistence.core.astyanax.ColumnNameIterator;
-import org.apache.usergrid.persistence.core.astyanax.CompositeFieldSerializer;
-import org.apache.usergrid.persistence.core.astyanax.IdRowCompositeSerializer;
-import org.apache.usergrid.persistence.core.astyanax.MultiTennantColumnFamily;
-import org.apache.usergrid.persistence.core.astyanax.MultiTennantColumnFamilyDefinition;
-import org.apache.usergrid.persistence.core.astyanax.OrganizationScopedRowKeySerializer;
-import org.apache.usergrid.persistence.core.astyanax.ScopedRowKey;
-import org.apache.usergrid.persistence.core.astyanax.StringColumnParser;
-import org.apache.usergrid.persistence.core.migration.Migration;
+import org.apache.usergrid.persistence.core.javadriver.RowIterator;
+import org.apache.usergrid.persistence.core.javadriver.RowParser;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.core.util.ValidationUtils;
 import org.apache.usergrid.persistence.graph.Edge;
@@ -47,396 +38,464 @@ import org.apache.usergrid.persistence.graph.serialization.EdgeMetadataSerializa
 import org.apache.usergrid.persistence.graph.serialization.util.GraphValidation;
 import org.apache.usergrid.persistence.model.entity.Id;
 
+import com.datastax.driver.core.BoundStatement;
+import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
+import com.datastax.driver.core.Statement;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.netflix.astyanax.Keyspace;
-import com.netflix.astyanax.MutationBatch;
-import com.netflix.astyanax.model.CompositeBuilder;
-import com.netflix.astyanax.model.CompositeParser;
-import com.netflix.astyanax.query.RowQuery;
-import com.netflix.astyanax.serializers.StringSerializer;
-import com.netflix.astyanax.util.RangeBuilder;
 
 
 /**
  * Class to perform all edge metadata I/O
  */
 @Singleton
-public class EdgeMetadataSerializationImpl implements EdgeMetadataSerialization, Migration {
-
-    private static final byte[] HOLDER = new byte[] { 0 };
-
-
-    //row key serializers
-    private static final IdRowCompositeSerializer ID_SER = IdRowCompositeSerializer.get();
-    private static final OrganizationScopedRowKeySerializer<Id> ROW_KEY_SER =
-            new OrganizationScopedRowKeySerializer<Id>( ID_SER );
-
-    private static final StringSerializer STRING_SERIALIZER = StringSerializer.get();
-
-    private static final EdgeTypeRowCompositeSerializer EDGE_SER = new EdgeTypeRowCompositeSerializer();
-    private static final OrganizationScopedRowKeySerializer<EdgeIdTypeKey> EDGE_TYPE_ROW_KEY =
-            new OrganizationScopedRowKeySerializer<EdgeIdTypeKey>( EDGE_SER );
-
-    private static final StringColumnParser PARSER = StringColumnParser.get();
-
+public class EdgeMetadataSerializationImpl implements EdgeMetadataSerialization {
 
     /**
      * CFs where the row key contains the source node id
      */
-    private static final MultiTennantColumnFamily<ApplicationScope, Id, String> CF_SOURCE_EDGE_TYPES =
-            new MultiTennantColumnFamily<ApplicationScope, Id, String>( "Graph_Source_Edge_Types", ROW_KEY_SER,
-                    STRING_SERIALIZER );
+    private static final String CF_SOURCE_EDGE_TYPES = "Graph_Source_Edge_Types";
+
+    private static final String CF_SOURCE_EDGE_TYPES_CREATE = "CREATE TABLE IF NOT EXISTS " + CF_SOURCE_EDGE_TYPES
+            + "( scopeId uuid, scopeType varchar, sourceNodeId uuid, sourceNodeType varchar, " +
+            "edgeType varchar, PRIMARY KEY ((scopeId, scopeType, sourceNodeId, sourceNodeType), edgeType) )";
 
     //all target id types for source edge type
-    private static final MultiTennantColumnFamily<ApplicationScope, EdgeIdTypeKey, String> CF_SOURCE_EDGE_ID_TYPES =
-            new MultiTennantColumnFamily<ApplicationScope, EdgeIdTypeKey, String>( "Graph_Source_Edge_Id_Types",
-                    EDGE_TYPE_ROW_KEY, STRING_SERIALIZER );
+    private static final String CF_SOURCE_EDGE_ID_TYPES = "Graph_Source_Edge_Id_Types";
+
+
+    private static final String CF_SOURCE_EDGE_ID_TYPES_CREATE = "CREATE TABLE IF NOT EXISTS " + CF_SOURCE_EDGE_ID_TYPES
+            + "( scopeId uuid, scopeType varchar, sourceNodeId uuid, sourceNodeType varchar, edgeType varchar, " +
+            "targetNodeType varchar,  PRIMARY KEY ((scopeId, scopeType, sourceNodeId, sourceNodeType, " +
+            "edgeType), targetNodeType) )";
+
 
     /**
      * CFs where the row key is the target node id
      */
-    private static final MultiTennantColumnFamily<ApplicationScope, Id, String> CF_TARGET_EDGE_TYPES =
-            new MultiTennantColumnFamily<ApplicationScope, Id, String>( "Graph_Target_Edge_Types", ROW_KEY_SER,
-                    STRING_SERIALIZER );
+    private static final String CF_TARGET_EDGE_TYPES = "Graph_Target_Edge_Types";
+
+    private static final String CF_TARGET_EDGE_TYPES_CREATE = "CREATE TABLE IF NOT EXISTS " + CF_TARGET_EDGE_TYPES
+            + "( scopeId uuid, scopeType varchar, targetNodeId uuid, targetNodeType varchar, edgeType varchar, " +
+            "PRIMARY KEY ((scopeId, scopeType, "
+            +
+            "targetNodeId, targetNodeType), edgeType ))";
 
 
     //all source id types for target edge type
-    private static final MultiTennantColumnFamily<ApplicationScope, EdgeIdTypeKey, String> CF_TARGET_EDGE_ID_TYPES =
-            new MultiTennantColumnFamily<ApplicationScope, EdgeIdTypeKey, String>( "Graph_Target_Edge_Id_Types",
-                    EDGE_TYPE_ROW_KEY, STRING_SERIALIZER );
+    private static final String CF_TARGET_EDGE_ID_TYPES = "Graph_Target_Edge_Id_Types";
+
+    private static final String CF_TARGET_EDGE_ID_TYPES_CREATE = "CREATE TABLE IF NOT EXISTS " + CF_TARGET_EDGE_ID_TYPES
+            + " ( scopeId uuid, scopeType varchar, targetNodeId uuid, targetNodeType varchar, edgeType varchar, "
+            + "sourceNodeType varchar, PRIMARY KEY ((scopeId, scopeType, targetNodeId, targetNodeType, " +
+            "edgeType), sourceNodeType ) )";
 
 
-    protected final Keyspace keyspace;
-    private final CassandraConfig cassandraConfig;
+    protected final Session session;
     private final GraphFig graphFig;
 
+    private PreparedStatement sourceEdgeTypesWrite;
+    private PreparedStatement sourceEdgeTypesDelete;
+    private PreparedStatement sourceEdgeTypesSelect;
 
+
+    private PreparedStatement targetEdgeTypesWrite;
+    private PreparedStatement targetEdgeTypesDelete;
+    private PreparedStatement targetEdgeTypesSelect;
+
+
+
+    private PreparedStatement sourceEdgeTargetTypesWrite;
+    private PreparedStatement sourceEdgeTargetTypesSelect;
+    private PreparedStatement sourceEdgeTargetTypesDelete;
+
+
+    private PreparedStatement targetEdgeSourceTypesWrite;
+    private PreparedStatement targetEdgeSourceTypesDelete;
+    private PreparedStatement targetEdgeSourceTypesSelect;
+
+
+    /**
+     * TODO.  The version logic in this doesn't work correctly if the highest edge is deleted. We should remove this,
+     * and just use a supplied timestamp. This way the caller can determine what max timestamp to use during a delete
+     */
+
+    /*
+     *
+     * @param session
+     * @param cassandraConfig
+     * @param graphFig
+     */
     @Inject
-    public EdgeMetadataSerializationImpl( final Keyspace keyspace, final CassandraConfig cassandraConfig,
-                                          final GraphFig graphFig ) {
-
-        Preconditions.checkNotNull( "cassandraConfig is required", cassandraConfig );
+    public EdgeMetadataSerializationImpl( final Session session, final GraphFig graphFig ) {
         Preconditions.checkNotNull( "consistencyFig is required", graphFig );
-        Preconditions.checkNotNull( "keyspace is required", keyspace );
+        Preconditions.checkNotNull( "session is required", session );
 
-        this.keyspace = keyspace;
-        this.cassandraConfig = cassandraConfig;
+        this.session = session;
         this.graphFig = graphFig;
     }
 
 
     @Override
-    public MutationBatch writeEdge( final ApplicationScope scope, final Edge edge ) {
+    public Collection<? extends Statement> writeEdge( final ApplicationScope scope, final Edge edge ) {
 
         ValidationUtils.validateApplicationScope( scope );
         GraphValidation.validateEdge( edge );
 
 
+        final Id applicationId = scope.getApplication();
+        final UUID applicationUuid = applicationId.getUuid();
+        final String applicationType = applicationId.getType();
+
+
         final Id source = edge.getSourceNode();
+        final UUID sourceUuid = source.getUuid();
+        final String sourceType = source.getType();
+
+
         final Id target = edge.getTargetNode();
+        final UUID targetUuid = target.getUuid();
+        final String targetType = target.getType();
+
         final String edgeType = edge.getType();
+
         final long timestamp = edge.getTimestamp();
 
-        final MutationBatch batch = keyspace.prepareMutationBatch().withConsistencyLevel( cassandraConfig.getWriteCL() )
-                                            .withTimestamp( timestamp );
+        final BoundStatement sourceStatement = this.sourceEdgeTypesWrite
+                .bind( applicationUuid, applicationType, sourceUuid, sourceType, edgeType, timestamp );
 
 
-        //add source->target edge type to meta data
-        final ScopedRowKey<ApplicationScope, Id> sourceKey = new ScopedRowKey<ApplicationScope, Id>( scope, source );
+        final BoundStatement sourceTargetTypeStatement = this.sourceEdgeTargetTypesWrite
+                .bind( applicationUuid, applicationType, sourceUuid, sourceType, edgeType, targetType, timestamp );
 
-        batch.withRow( CF_SOURCE_EDGE_TYPES, sourceKey ).putColumn( edgeType, HOLDER );
+        final BoundStatement targetStatement = this.targetEdgeTypesWrite
+                .bind( applicationUuid, applicationType, targetUuid, targetType, edgeType, timestamp );
 
-
-        //write source->target edge type and id type to meta data
-        EdgeIdTypeKey tk = new EdgeIdTypeKey( source, edgeType );
-        final ScopedRowKey<ApplicationScope, EdgeIdTypeKey> sourceTypeKey =
-                new ScopedRowKey<ApplicationScope, EdgeIdTypeKey>( scope, tk );
+        final BoundStatement targetSourceTypeStatement = this.targetEdgeSourceTypesWrite
+                .bind( applicationUuid, applicationType, targetUuid, targetType, edgeType, sourceType, timestamp );
 
 
-        batch.withRow( CF_SOURCE_EDGE_ID_TYPES, sourceTypeKey ).putColumn( target.getType(), HOLDER );
-
-
-        //write target<--source edge type meta data
-        final ScopedRowKey<ApplicationScope, Id> targetKey = new ScopedRowKey<ApplicationScope, Id>( scope, target );
-
-
-        batch.withRow( CF_TARGET_EDGE_TYPES, targetKey ).putColumn( edgeType, HOLDER );
-
-
-        //write target<--source edge type and id type to meta data
-        final ScopedRowKey<ApplicationScope, EdgeIdTypeKey> targetTypeKey =
-                new ScopedRowKey<ApplicationScope, EdgeIdTypeKey>( scope, new EdgeIdTypeKey( target, edgeType ) );
-
-
-        batch.withRow( CF_TARGET_EDGE_ID_TYPES, targetTypeKey ).putColumn( source.getType(), HOLDER );
-
-
-        return batch;
+        return Arrays.asList( sourceStatement, sourceTargetTypeStatement, targetStatement, targetSourceTypeStatement );
     }
 
 
     @Override
-    public MutationBatch removeEdgeTypeFromSource( final ApplicationScope scope, final Edge edge ) {
+    public Collection<? extends Statement> removeEdgeTypeFromSource( final ApplicationScope scope, final Edge edge ) {
         return removeEdgeTypeFromSource( scope, edge.getSourceNode(), edge.getType(), edge.getTimestamp() );
     }
 
 
     @Override
-    public MutationBatch removeEdgeTypeFromSource( final ApplicationScope scope, final Id sourceNode, final String type,
-                                                   final long version ) {
-        return removeEdgeType( scope, sourceNode, type, version, CF_SOURCE_EDGE_TYPES );
+    public Collection<? extends Statement> removeEdgeTypeFromSource( final ApplicationScope scope, final Id sourceNode,
+                                                                     final String type, final long version ) {
+
+        final Id applicationId = scope.getApplication();
+        final UUID applicationUuid = applicationId.getUuid();
+        final String applicationType = applicationId.getType();
+        final UUID sourceId = sourceNode.getUuid();
+        final String sourceType = sourceNode.getType();
+
+
+        final BoundStatement removeStatement = this.sourceEdgeTypesDelete
+                .bind( version, applicationUuid, applicationType, sourceId, sourceType, type );
+
+        return Collections.singleton( removeStatement );
     }
 
 
     @Override
-    public MutationBatch removeIdTypeFromSource( final ApplicationScope scope, final Edge edge ) {
+    public Collection<? extends Statement> removeIdTypeFromSource( final ApplicationScope scope, final Edge edge ) {
         return removeIdTypeFromSource( scope, edge.getSourceNode(), edge.getType(), edge.getTargetNode().getType(),
                 edge.getTimestamp() );
     }
 
 
     @Override
-    public MutationBatch removeIdTypeFromSource( final ApplicationScope scope, final Id sourceNode, final String type,
-                                                 final String idType, final long version ) {
-        return removeIdType( scope, sourceNode, idType, type, version, CF_SOURCE_EDGE_ID_TYPES );
+    public Collection<? extends Statement> removeIdTypeFromSource( final ApplicationScope scope, final Id sourceNode,
+                                                                   final String type, final String idType,
+                                                                   final long version ) {
+        final Id applicationId = scope.getApplication();
+        final UUID applicationUuid = applicationId.getUuid();
+        final String applicationType = applicationId.getType();
+
+        final UUID sourceId = sourceNode.getUuid();
+        final String sourceType = sourceNode.getType();
+
+
+        final BoundStatement removeStatement = this.sourceEdgeTargetTypesDelete
+                .bind( version, applicationUuid, applicationType, sourceId, sourceType, type, idType );
+
+        return Collections.singleton( removeStatement );
     }
 
 
     @Override
-    public MutationBatch removeEdgeTypeToTarget( final ApplicationScope scope, final Edge edge ) {
+    public Collection<? extends Statement> removeEdgeTypeToTarget( final ApplicationScope scope, final Edge edge ) {
+
         return removeEdgeTypeToTarget( scope, edge.getTargetNode(), edge.getType(), edge.getTimestamp() );
     }
 
 
     @Override
-    public MutationBatch removeEdgeTypeToTarget( final ApplicationScope scope, final Id targetNode, final String type,
-                                                 final long version ) {
-        return removeEdgeType( scope, targetNode, type, version, CF_TARGET_EDGE_TYPES );
+    public Collection<? extends Statement> removeEdgeTypeToTarget( final ApplicationScope scope, final Id targetNode,
+                                                                   final String type, final long version ) {
+        final Id applicationId = scope.getApplication();
+        final UUID applicationUuid = applicationId.getUuid();
+        final String applicationType = applicationId.getType();
+        final UUID targetUuid = targetNode.getUuid();
+        final String targetType = targetNode.getType();
+
+
+        final BoundStatement removeStatement = this.targetEdgeTypesDelete
+                .bind( version, applicationUuid, applicationType, targetUuid, type, targetType );
+
+        return Collections.singleton( removeStatement );
     }
 
 
     @Override
-    public MutationBatch removeIdTypeToTarget( final ApplicationScope scope, final Edge edge ) {
+    public Collection<? extends Statement> removeIdTypeToTarget( final ApplicationScope scope, final Edge edge ) {
         return removeIdTypeToTarget( scope, edge.getTargetNode(), edge.getType(), edge.getSourceNode().getType(),
                 edge.getTimestamp() );
     }
 
 
     @Override
-    public MutationBatch removeIdTypeToTarget( final ApplicationScope scope, final Id targetNode, final String type,
-                                               final String idType, final long version ) {
-        return removeIdType( scope, targetNode, idType, type, version, CF_TARGET_EDGE_ID_TYPES );
-    }
+    public Collection<? extends Statement> removeIdTypeToTarget( final ApplicationScope scope, final Id targetNode,
+                                                                 final String type, final String idType,
+                                                                 final long version ) {
 
 
-    /**
-     * Remove the edge
-     *
-     * @param scope The scope
-     * @param rowKeyId The id to use in the row key
-     * @param edgeType The edge type
-     * @param version The version of the edge
-     * @param cf The column family
-     */
-    private MutationBatch removeEdgeType( final ApplicationScope scope, final Id rowKeyId, final String edgeType,
-                                          final long version,
-                                          final MultiTennantColumnFamily<ApplicationScope, Id, String> cf ) {
+        final Id applicationId = scope.getApplication();
+        final UUID applicationUuid = applicationId.getUuid();
+        final String applicationType = applicationId.getType();
+
+        final UUID targetUuid = targetNode.getUuid();
+        final String targetType = targetNode.getType();
 
 
-        //write target<--source edge type meta data
-        final ScopedRowKey<ApplicationScope, Id> rowKey = new ScopedRowKey<ApplicationScope, Id>( scope, rowKeyId );
+        final BoundStatement removeStatement = this.targetEdgeSourceTypesDelete
+                .bind( version, applicationUuid, applicationType, targetUuid, targetType, type, idType );
 
-        final MutationBatch batch = keyspace.prepareMutationBatch().withTimestamp( version );
-
-        batch.withRow( cf, rowKey ).deleteColumn( edgeType );
-
-        return batch;
-    }
-
-
-    /**
-     * Remove the id type
-     *
-     * @param scope The scope to use
-     * @param rowId The id to use in the row key
-     * @param idType The id type to use in the column
-     * @param edgeType The edge type to use in the column
-     * @param version The version to use on the column
-     * @param cf The column family to use
-     *
-     * @return A populated mutation with the remove operations
-     */
-    private MutationBatch removeIdType( final ApplicationScope scope, final Id rowId, final String idType,
-                                        final String edgeType, final long version,
-                                        final MultiTennantColumnFamily<ApplicationScope, EdgeIdTypeKey, String> cf ) {
-
-
-        final MutationBatch batch = keyspace.prepareMutationBatch().withTimestamp( version );
-
-
-        //write target<--source edge type and id type to meta data
-        final ScopedRowKey<ApplicationScope, EdgeIdTypeKey> rowKey =
-                new ScopedRowKey<ApplicationScope, EdgeIdTypeKey>( scope, new EdgeIdTypeKey( rowId, edgeType ) );
-
-
-        batch.withRow( cf, rowKey ).deleteColumn( idType );
-
-        return batch;
+        return Collections.singleton( removeStatement );
     }
 
 
     @Override
     public Iterator<String> getEdgeTypesFromSource( final ApplicationScope scope, final SearchEdgeType search ) {
-        return getEdgeTypes( scope, search, CF_SOURCE_EDGE_TYPES );
+
+
+        final Id applicationId = scope.getApplication();
+        final UUID applicationUuid = applicationId.getUuid();
+        final String applicationType = applicationId.getType();
+        final Id searchNode = search.getNode();
+        final UUID sourceId = searchNode.getUuid();
+        final String sourceType = searchNode.getType();
+        final String start = getStart( search );
+        final int limit = graphFig.getScanPageSize();
+
+
+        final BoundStatement statement =
+                this.sourceEdgeTypesSelect.bind( applicationUuid, applicationType, sourceId, sourceType, start );
+
+        statement.setFetchSize( limit );
+
+        return new RowIterator<>( session, statement, EDGE_PARSER );
     }
 
 
     @Override
     public Iterator<String> getIdTypesFromSource( final ApplicationScope scope, final SearchIdType search ) {
-        return getIdTypes( scope, search, CF_SOURCE_EDGE_ID_TYPES );
+        final Id applicationId = scope.getApplication();
+        final UUID applicationUuid = applicationId.getUuid();
+        final String applicationType = applicationId.getType();
+        final Id searchNode = search.getNode();
+        final UUID sourceId = searchNode.getUuid();
+        final String sourceType = searchNode.getType();
+
+        final String edgeType = search.getEdgeType();
+        final String start = getStart( search );
+
+        final int limit = graphFig.getScanPageSize();
+
+
+        final BoundStatement statement = this.sourceEdgeTargetTypesSelect
+                .bind( applicationUuid, applicationType, sourceId, sourceType, edgeType, start );
+
+        statement.setFetchSize( limit );
+
+        return new RowIterator<>( session, statement, TARGET_ID_TYPE_PARSER );
     }
 
 
     @Override
     public Iterator<String> getEdgeTypesToTarget( final ApplicationScope scope, final SearchEdgeType search ) {
-        return getEdgeTypes( scope, search, CF_TARGET_EDGE_TYPES );
-    }
+        final Id applicationId = scope.getApplication();
+        final UUID applicationUuid = applicationId.getUuid();
+        final String applicationType = applicationId.getType();
+        final Id searchNode = search.getNode();
+        final UUID targetId = searchNode.getUuid();
+        final String targetType = searchNode.getType();
+
+        final String start = getStart( search );
+        final int limit = graphFig.getScanPageSize();
 
 
-    /**
-     * Get the edge types from the search criteria.
-     *
-     * @param scope The org scope
-     * @param search The edge type search info
-     * @param cf The column family to execute on
-     */
-    private Iterator<String> getEdgeTypes( final ApplicationScope scope, final SearchEdgeType search,
-                                           final MultiTennantColumnFamily<ApplicationScope, Id, String> cf ) {
-        ValidationUtils.validateApplicationScope( scope );
-        GraphValidation.validateSearchEdgeType( search );
+        final BoundStatement statement =
+                this.targetEdgeTypesSelect.bind( applicationUuid, applicationType, targetId, targetType, start );
 
+        statement.setFetchSize( limit );
 
-        final ScopedRowKey<ApplicationScope, Id> sourceKey = new ScopedRowKey<>( scope, search.getNode() );
-
-
-        //resume from the last if specified.  Also set the range
-
-
-        final RangeBuilder rangeBuilder = createRange( search );
-
-        RowQuery<ScopedRowKey<ApplicationScope, Id>, String> query =
-                keyspace.prepareQuery( cf ).getKey( sourceKey ).autoPaginate( true )
-                        .withColumnRange( rangeBuilder.build() );
-
-        return new ColumnNameIterator<>( query, PARSER, search.getLast().isPresent() );
+        return new RowIterator<>( session, statement, EDGE_PARSER );
     }
 
 
     @Override
     public Iterator<String> getIdTypesToTarget( final ApplicationScope scope, final SearchIdType search ) {
-        return getIdTypes( scope, search, CF_TARGET_EDGE_ID_TYPES );
-    }
+        final Id applicationId = scope.getApplication();
+        final UUID applicationUuid = applicationId.getUuid();
+        final String applicationType = applicationId.getType();
+        final Id searchNode = search.getNode();
+        final UUID targetId = searchNode.getUuid();
+        final String targetType = searchNode.getType();
+        final String edgeType = search.getEdgeType();
+
+        final String start = getStart( search );
+
+        final int limit = graphFig.getScanPageSize();
 
 
-    /**
-     * Get the id types from the specified column family
-     *
-     * @param scope The organization scope to use
-     * @param search The search criteria
-     * @param cf The column family to search
-     */
-    public Iterator<String> getIdTypes( final ApplicationScope scope, final SearchIdType search,
-                                        final MultiTennantColumnFamily<ApplicationScope, EdgeIdTypeKey, String> cf ) {
-        ValidationUtils.validateApplicationScope( scope );
-        GraphValidation.validateSearchEdgeIdType( search );
+        final BoundStatement statement = this.targetEdgeSourceTypesSelect
+                .bind( applicationUuid, applicationType, targetId, targetType, edgeType, start );
 
+        statement.setFetchSize( limit );
 
-        final ScopedRowKey<ApplicationScope, EdgeIdTypeKey> sourceTypeKey =
-                new ScopedRowKey<>( scope, new EdgeIdTypeKey( search.getNode(), search.getEdgeType() ) );
-
-
-        final RangeBuilder rangeBuilder = createRange( search );
-
-
-        RowQuery<ScopedRowKey<ApplicationScope, EdgeIdTypeKey>, String> query =
-                keyspace.prepareQuery( cf ).getKey( sourceTypeKey ).autoPaginate( true )
-                        .withColumnRange( rangeBuilder.build() );
-
-
-        return new ColumnNameIterator<>( query, PARSER, search.getLast().isPresent() );
+        return new RowIterator<>( session, statement, SOURCE_ID_TYPE_PARSER );
     }
 
 
     @Override
-    public Collection<MultiTennantColumnFamilyDefinition> getColumnFamilies() {
-        return Arrays.asList( graphCf( CF_SOURCE_EDGE_TYPES ), graphCf( CF_TARGET_EDGE_TYPES ),
-                graphCf( CF_SOURCE_EDGE_ID_TYPES ), graphCf( CF_TARGET_EDGE_ID_TYPES ) );
+    public Collection<String> getColumnFamilies() {
+        return Arrays.asList( CF_SOURCE_EDGE_TYPES_CREATE, CF_SOURCE_EDGE_ID_TYPES_CREATE, CF_TARGET_EDGE_TYPES_CREATE,
+                CF_TARGET_EDGE_ID_TYPES_CREATE );
     }
 
 
-    /**
-     * Helper to generate an edge definition by the type
-     */
-    private MultiTennantColumnFamilyDefinition graphCf( MultiTennantColumnFamily cf ) {
-        return new MultiTennantColumnFamilyDefinition( cf, BytesType.class.getSimpleName(),
-                UTF8Type.class.getSimpleName(), BytesType.class.getSimpleName(),
-                MultiTennantColumnFamilyDefinition.CacheOption.KEYS );
+    @Override
+    public void prepareStatements() {
+        /**
+         * Source with edge types
+         */
+        this.sourceEdgeTypesWrite = session.prepare( "INSERT INTO " + CF_SOURCE_EDGE_TYPES
+                + " (scopeId, scopeType, sourceNodeId, sourceNodeType, edgeType) VALUES (?, ?, ?, ?, " +
+                "?) USING TIMESTAMP ?" );
+
+        this.sourceEdgeTypesDelete = session.prepare( "DELETE FROM " + CF_SOURCE_EDGE_TYPES
+                + " USING TIMESTAMP ? WHERE scopeId = ? AND scopeType = ? AND sourceNodeId = ? AND sourceNodeType = ? "
+                +
+                "AND edgeType = ? " );
+
+
+        this.sourceEdgeTypesSelect = session.prepare( "SELECT edgeType FROM " + CF_SOURCE_EDGE_TYPES
+                + " WHERE scopeId = ? AND scopeType = ? AND sourceNodeId = ? AND sourceNodeType = ? AND edgeType > ?" );
+
+        /**
+         * Source with target types
+         */
+
+        this.sourceEdgeTargetTypesWrite = session.prepare( "INSERT INTO " + CF_SOURCE_EDGE_ID_TYPES
+                + " (scopeId, scopeType, sourceNodeId, sourceNodeType, edgeType, targetNodeType) VALUES (?, ?, ?, ?, " +
+                "?, ?)  USING TIMESTAMP ?" );
+
+        this.sourceEdgeTargetTypesDelete = session.prepare( "DELETE FROM " + CF_SOURCE_EDGE_ID_TYPES
+                + " USING TIMESTAMP ? WHERE scopeId = ? AND scopeType = ? AND sourceNodeId = ? AND sourceNodeType = ?" +
+                " AND "
+                +
+                "edgeType = ? AND targetNodeType = ? " );
+
+        this.sourceEdgeTargetTypesSelect = session.prepare( "SELECT targetNodeType FROM " + CF_SOURCE_EDGE_ID_TYPES
+                + " WHERE scopeId = ? AND scopeType = ? AND sourceNodeId = ? AND sourceNodeType = ? AND " +
+                "edgeType = ? AND targetNodeType > ?" );
+
+
+        /**
+         * Target with edge types
+         */
+
+        this.targetEdgeTypesWrite = session.prepare( "INSERT INTO " + CF_TARGET_EDGE_TYPES
+                + " (scopeId, scopeType, targetNodeId, targetNodeType, edgeType) VALUES (?, ?, ?, ?, " +
+                "?)  USING TIMESTAMP ?" );
+
+
+        this.targetEdgeTypesDelete = session.prepare( "DELETE FROM " + CF_TARGET_EDGE_TYPES
+                + " USING TIMESTAMP ? WHERE scopeId = ? AND scopeType = ? AND targetNodeId = ?  AND edgeType = ? AND targetNodeType = ?" );
+
+        this.targetEdgeTypesSelect = session.prepare( "SELECT edgeType FROM " + CF_TARGET_EDGE_TYPES
+                + " WHERE scopeId = ? AND scopeType = ? AND targetNodeId = ? AND targetNodeType = ? AND edgeType > ?" );
+
+
+        /**
+         * Target with source edge types
+         */
+        this.targetEdgeSourceTypesWrite = session.prepare( "INSERT INTO " + CF_TARGET_EDGE_ID_TYPES
+                + " (scopeId, scopeType, targetNodeId, targetNodeType, edgeType, sourceNodeType) VALUES (?, ?, ?, ?, " +
+                "?, ?)  USING TIMESTAMP ?" );
+
+
+        this.targetEdgeSourceTypesDelete = session.prepare( "DELETE FROM " + CF_TARGET_EDGE_ID_TYPES
+                + " USING TIMESTAMP ? WHERE scopeId = ? AND scopeType = ? AND targetNodeId = ?  AND targetNodeType = ? AND edgeType = ?" +
+                " AND  sourceNodeType = ? " );
+
+
+        this.targetEdgeSourceTypesSelect = session.prepare( "SELECT sourceNodeType FROM " + CF_TARGET_EDGE_ID_TYPES
+                + " WHERE scopeId = ? AND scopeType = ? AND targetNodeId = ? AND targetNodeType = ? AND edgeType = ?" +
+                " AND sourceNodeType > ?" );
     }
 
 
-    /**
-     * Inner class to serialize and edgeIdTypeKey
-     */
-    private static class EdgeTypeRowCompositeSerializer implements CompositeFieldSerializer<EdgeIdTypeKey> {
+    private String getStart( final SearchEdgeType search ) {
+        final Optional<String> last = search.getLast();
+
+        if ( last.isPresent() ) {
+            return last.get();
+        }
 
 
-        private static final IdRowCompositeSerializer ID_SER = IdRowCompositeSerializer.get();
+        final Optional<String> prefix = search.prefix();
+
+        if ( prefix.isPresent() ) {
+            return prefix + "\uffff";
+        }
+
+        return "";
+    }
 
 
+    private final RowParser<String> EDGE_PARSER = new RowParser<String>() {
         @Override
-        public void toComposite( final CompositeBuilder builder, final EdgeIdTypeKey value ) {
-            ID_SER.toComposite( builder, value.node );
-
-            builder.addString( value.edgeType );
+        public String parseRow( final Row row ) {
+            return row.getString( "edgeType" );
         }
+    };
 
 
+    private final RowParser<String> SOURCE_ID_TYPE_PARSER = new RowParser<String>() {
         @Override
-        public EdgeIdTypeKey fromComposite( final CompositeParser composite ) {
-            final Id id = ID_SER.fromComposite( composite );
-
-            final String edgeType = composite.readString();
-
-            return new EdgeIdTypeKey( id, edgeType );
+        public String parseRow( final Row row ) {
+            return row.getString( "sourceNodeType" );
         }
-    }
+    };
 
-
-    private RangeBuilder createRange( final SearchEdgeType search ) {
-        final RangeBuilder builder = new RangeBuilder().setLimit( graphFig.getScanPageSize() );
-
-
-        //we have a last, it's where we need to start seeking from
-        if ( search.getLast().isPresent() ) {
-            builder.setStart( search.getLast().get() );
+    private final RowParser<String> TARGET_ID_TYPE_PARSER = new RowParser<String>() {
+        @Override
+        public String parseRow( final Row row ) {
+            return row.getString( "targetNodeType" );
         }
-
-        //no last was set, but we have a prefix, set it
-        else if ( search.prefix().isPresent() ) {
-            builder.setStart( search.prefix().get() );
-        }
-
-
-        //we have a prefix, so make sure we only seek to prefix + max UTF value
-        if ( search.prefix().isPresent() ) {
-            builder.setEnd( search.prefix().get() + "\uffff" );
-        }
-
-
-        return builder;
-    }
+    };
 
 
     //    private void setStart( final SearchEdgeType search, final RangeBuilder builder ) {

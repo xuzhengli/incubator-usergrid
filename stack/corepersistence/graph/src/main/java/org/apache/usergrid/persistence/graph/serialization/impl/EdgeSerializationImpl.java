@@ -46,6 +46,7 @@ import org.apache.usergrid.persistence.graph.serialization.impl.shard.impl.Shard
 import org.apache.usergrid.persistence.graph.serialization.util.GraphValidation;
 import org.apache.usergrid.persistence.model.entity.Id;
 
+import com.datastax.driver.core.Statement;
 import com.google.inject.Singleton;
 import com.netflix.astyanax.Keyspace;
 import com.netflix.astyanax.MutationBatch;
@@ -96,7 +97,7 @@ public class EdgeSerializationImpl implements EdgeSerialization {
 
 
     @Override
-    public MutationBatch writeEdge( final ApplicationScope scope, final MarkedEdge markedEdge, final UUID timestamp ) {
+    public Collection<? extends Statement> writeEdge( final ApplicationScope scope, final MarkedEdge markedEdge, final UUID timestamp ) {
 
         ValidationUtils.validateApplicationScope( scope );
         GraphValidation.validateEdge( markedEdge );
@@ -181,12 +182,12 @@ public class EdgeSerializationImpl implements EdgeSerialization {
                         edgeVersionsMeta, timestamp ) );
 
 
-        return batch;
+        return null;
     }
 
 
     @Override
-    public MutationBatch deleteEdge( final ApplicationScope scope, final MarkedEdge markedEdge, final UUID timestamp ) {
+    public Collection<? extends Statement> deleteEdge( final ApplicationScope scope, final MarkedEdge markedEdge, final UUID timestamp ) {
         ValidationUtils.validateApplicationScope( scope );
         GraphValidation.validateEdge( markedEdge );
         ValidationUtils.verifyTimeUuid( timestamp, "timestamp" );
@@ -270,7 +271,7 @@ public class EdgeSerializationImpl implements EdgeSerialization {
                         edgeVersionsMeta, timestamp ) );
 
 
-        return batch;
+        return null;
     }
 
 

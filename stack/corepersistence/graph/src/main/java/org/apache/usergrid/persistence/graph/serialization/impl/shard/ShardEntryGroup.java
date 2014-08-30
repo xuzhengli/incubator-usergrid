@@ -35,9 +35,9 @@ import com.google.common.base.Preconditions;
 /**
  * There are cases where we need to read or write to more than 1 shard.  This object encapsulates a set of shards that
  * should be written to and read from.  All reads should combine the data sets from all shards in the group, and writes
- * should be written to each shard.  Once the shard can safely be compacted a background process should be triggered to
+ * should be written to a target shard.  Once the shard can safely be compacted a background process should be triggered to
  * remove additional shards and make seeks faster.  This multiread/write should only occur during the time period of the
- * delta (in milliseconds), after which the next read will asynchronously compact the shards into a single shard.
+ * user configured delta (in milliseconds), after which the next read will asynchronously compact the shards into a single shard.
  */
 public class ShardEntryGroup {
 

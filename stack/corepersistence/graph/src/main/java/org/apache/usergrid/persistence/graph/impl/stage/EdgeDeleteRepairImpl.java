@@ -20,6 +20,7 @@
 package org.apache.usergrid.persistence.graph.impl.stage;
 
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.UUID;
 
@@ -27,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.usergrid.persistence.core.hystrix.HystrixCassandra;
+import org.apache.usergrid.persistence.core.javadriver.BatchStatementUtils;
 import org.apache.usergrid.persistence.core.rx.ObservableIterator;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.graph.Edge;
@@ -36,6 +38,8 @@ import org.apache.usergrid.persistence.graph.SearchByEdgeType;
 import org.apache.usergrid.persistence.graph.impl.SimpleSearchByEdge;
 import org.apache.usergrid.persistence.graph.serialization.EdgeSerialization;
 
+import com.datastax.driver.core.Session;
+import com.datastax.driver.core.Statement;
 import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 import com.netflix.astyanax.Keyspace;
@@ -56,21 +60,21 @@ public class EdgeDeleteRepairImpl implements EdgeDeleteRepair {
 
     protected final EdgeSerialization storageSerialization;
     protected final GraphFig graphFig;
-    protected final Keyspace keyspace;
+    protected final Session session;
 
 
     @Inject
     public EdgeDeleteRepairImpl( final EdgeSerialization storageSerialization,
-                                 final GraphFig graphFig, final Keyspace keyspace ) {
+                                 final GraphFig graphFig, final Session session ) {
 
         Preconditions.checkNotNull( "storageSerialization is required", storageSerialization );
         Preconditions.checkNotNull( "consistencyFig is required", graphFig );
-        Preconditions.checkNotNull( "keyspace is required", keyspace );
+        Preconditions.checkNotNull( "session is required", session );
 
 
         this.storageSerialization = storageSerialization;
         this.graphFig = graphFig;
-        this.keyspace = keyspace;
+        this.session = session;
     }
 
 
@@ -93,8 +97,11 @@ public class EdgeDeleteRepairImpl implements EdgeDeleteRepair {
                                     //remove from the commit log
 
 
+                                    final Collection<? extends Statement>
+                                            deletes = storageSerialization.deleteEdge( scope, edge, timestamp );
+
                                     //remove from storage
-                                    HystrixCassandra.async(storageSerialization.deleteEdge( scope, edge, timestamp ));
+                                    BatchStatementUtils.runBatches(session, deletes  );
                                 }
                             }
                         } );

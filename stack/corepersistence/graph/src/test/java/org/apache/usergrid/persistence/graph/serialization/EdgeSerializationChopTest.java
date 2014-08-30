@@ -30,12 +30,14 @@ import org.junit.runner.RunWith;
 
 import org.apache.usergrid.persistence.collection.guice.MigrationManagerRule;
 import org.apache.usergrid.persistence.core.cassandra.ITRunner;
+import org.apache.usergrid.persistence.core.javadriver.BatchStatementUtils;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.graph.MarkedEdge;
 import org.apache.usergrid.persistence.graph.guice.TestGraphModule;
 import org.apache.usergrid.persistence.model.entity.Id;
 import org.apache.usergrid.persistence.model.util.UUIDGenerator;
 
+import com.datastax.driver.core.Session;
 import com.google.inject.Inject;
 import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
 
@@ -66,6 +68,9 @@ public class EdgeSerializationChopTest {
     protected EdgeSerialization serialization;
 
     protected ApplicationScope scope;
+
+    @Inject
+    protected Session session;
 
 
     /**
@@ -106,7 +111,7 @@ public class EdgeSerializationChopTest {
 
         final MarkedEdge edge = createEdge( sourceId, "edge", targetId );
 
-        serialization.writeEdge( scope, edge, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, serialization.writeEdge( scope, edge, UUIDGenerator.newTimeUUID() ) );
 
 
         long now = System.currentTimeMillis();

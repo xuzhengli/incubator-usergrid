@@ -19,6 +19,7 @@
 package org.apache.usergrid.persistence.graph.impl.stage;
 
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -29,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.usergrid.persistence.core.hystrix.HystrixCassandra;
+import org.apache.usergrid.persistence.core.javadriver.BatchStatementUtils;
 import org.apache.usergrid.persistence.core.rx.ObservableIterator;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.graph.GraphFig;
@@ -42,6 +44,9 @@ import org.apache.usergrid.persistence.graph.serialization.EdgeSerialization;
 import org.apache.usergrid.persistence.graph.serialization.NodeSerialization;
 import org.apache.usergrid.persistence.model.entity.Id;
 
+import com.datastax.driver.core.BatchStatement;
+import com.datastax.driver.core.Session;
+import com.datastax.driver.core.Statement;
 import com.google.common.base.Optional;
 import com.google.inject.Inject;
 import com.netflix.astyanax.Keyspace;
@@ -66,7 +71,7 @@ public class NodeDeleteListenerImpl implements NodeDeleteListener {
     private final EdgeMetadataSerialization edgeMetadataSerialization;
     private final EdgeMetaRepair edgeMetaRepair;
     private final GraphFig graphFig;
-    protected final Keyspace keyspace;
+    protected final Session session;
 
 
     /**
@@ -77,7 +82,7 @@ public class NodeDeleteListenerImpl implements NodeDeleteListener {
                                    final EdgeMetadataSerialization edgeMetadataSerialization,
                                    final EdgeMetaRepair edgeMetaRepair, final GraphFig graphFig,
                                    final EdgeSerialization storageSerialization,
-                                   final Keyspace keyspace ) {
+                                   final Session session) {
 
 
         this.nodeSerialization = nodeSerialization;
@@ -85,7 +90,7 @@ public class NodeDeleteListenerImpl implements NodeDeleteListener {
         this.edgeMetadataSerialization = edgeMetadataSerialization;
         this.edgeMetaRepair = edgeMetaRepair;
         this.graphFig = graphFig;
-        this.keyspace = keyspace;
+        this.session = session;
     }
 
 
@@ -128,7 +133,9 @@ public class NodeDeleteListenerImpl implements NodeDeleteListener {
                                 .doOnCompleted( new Action0() {
                                     @Override
                                     public void call() {
-                                        HystrixCassandra.async(nodeSerialization.delete( scope, node, maxVersion.get() ));
+                                        final Collection<? extends Statement>
+                                                statements =  nodeSerialization.delete( scope, node, maxVersion.get() );
+                                        BatchStatementUtils.runBatches(session, statements );
                                     }
                                 } );
                     }
@@ -151,7 +158,7 @@ public class NodeDeleteListenerImpl implements NodeDeleteListener {
 
         //get all edges pointing to the target node and buffer then into groups for deletion
         Observable<MarkedEdge> targetEdges =
-                getEdgesTypesToTarget( scope, new SimpleSearchEdgeType( node, null, null ) )
+                getEdgesTypesToTarget( scope, new SimpleSearchEdgeType( node, null,null ) )
                         .subscribeOn( Schedulers.io() ).flatMap( new Func1<String, Observable<MarkedEdge>>() {
                     @Override
                     public Observable<MarkedEdge> call( final String edgeType ) {
@@ -192,7 +199,7 @@ public class NodeDeleteListenerImpl implements NodeDeleteListener {
 
                         LOG.debug( "Batching {} edges for node {} for deletion", markedEdges.size(), node );
 
-                        final MutationBatch batch = keyspace.prepareMutationBatch();
+                        final BatchStatement batch = BatchStatementUtils.fastStatement();
 
                         Set<TargetPair> sourceNodes = new HashSet<>( markedEdges.size() );
                         Set<TargetPair> targetNodes = new HashSet<>( markedEdges.size() );
@@ -203,13 +210,13 @@ public class NodeDeleteListenerImpl implements NodeDeleteListener {
 
                             //we use the version specified on the delete purposefully.  If these edges are re-written
                             //at a greater time we want them to exit
-                            batch.mergeShallow( storageSerialization.deleteEdge( scope, edge, eventTimestamp ) );
+                            batch.addAll( storageSerialization.deleteEdge( scope, edge, eventTimestamp ) );
 
                             sourceNodes.add( new TargetPair( edge.getSourceNode(), edge.getType() ) );
                             targetNodes.add( new TargetPair( edge.getTargetNode(), edge.getType() ) );
                         }
 
-                        HystrixCassandra.async( batch );
+                        session.execute( batch );
 
                         //now  delete meta data
 

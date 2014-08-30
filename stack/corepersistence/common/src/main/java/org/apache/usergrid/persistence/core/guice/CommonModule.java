@@ -27,10 +27,15 @@ import org.apache.usergrid.persistence.core.astyanax.CassandraConfigImpl;
 import org.apache.usergrid.persistence.core.astyanax.CassandraFig;
 import org.apache.usergrid.persistence.core.consistency.TimeService;
 import org.apache.usergrid.persistence.core.consistency.TimeServiceImpl;
+import org.apache.usergrid.persistence.core.javadriver.DatastaxSessionProvider;
+import org.apache.usergrid.persistence.core.migration.DatastaxMigration;
+import org.apache.usergrid.persistence.core.migration.DatastaxMigrationManager;
+import org.apache.usergrid.persistence.core.migration.DatastaxMigrationManagerImpl;
 import org.apache.usergrid.persistence.core.migration.MigrationManager;
 import org.apache.usergrid.persistence.core.migration.MigrationManagerFig;
 import org.apache.usergrid.persistence.core.migration.MigrationManagerImpl;
 
+import com.datastax.driver.core.Session;
 import com.google.inject.AbstractModule;
 import com.netflix.astyanax.Keyspace;
 
@@ -52,12 +57,20 @@ public class CommonModule extends AbstractModule {
              // bind our keyspace to the AstyanaxKeyspaceProvider
         bind( Keyspace.class ).toProvider( AstyanaxKeyspaceProvider.class ).asEagerSingleton();
 
+
+        bind( Session.class).toProvider( DatastaxSessionProvider.class ).asEagerSingleton();
+
+
+        //bind our datastax migration manager
+        bind( DatastaxMigrationManager.class ).to( DatastaxMigrationManagerImpl.class ).asEagerSingleton();
+
         // bind our migration manager
-        bind( MigrationManager.class ).to( MigrationManagerImpl.class );
+//        bind( MigrationManager.class ).to( MigrationManagerImpl.class );
 
         bind( TimeService.class ).to( TimeServiceImpl.class );
 
         bind( CassandraConfig.class ).to( CassandraConfigImpl.class );
+
 
     }
 

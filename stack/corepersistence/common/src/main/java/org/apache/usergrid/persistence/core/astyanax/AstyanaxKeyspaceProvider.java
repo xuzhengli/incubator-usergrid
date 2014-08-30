@@ -59,6 +59,7 @@ public class AstyanaxKeyspaceProvider implements Provider<Keyspace> {
         AstyanaxConfiguration config = new AstyanaxConfigurationImpl()
                 .setDiscoveryType( NodeDiscoveryType.valueOf( cassandraFig.getDiscoveryType() ) )
                 .setTargetCassandraVersion( cassandraFig.getVersion() )
+                .setCqlVersion( "3.0.0" )
                 .setDefaultReadConsistencyLevel( cassandraConfig.getReadCL() )
                 .setDefaultWriteConsistencyLevel( cassandraConfig.getWriteCL() );
 

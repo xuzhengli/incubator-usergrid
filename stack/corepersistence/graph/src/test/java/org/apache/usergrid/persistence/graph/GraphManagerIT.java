@@ -74,7 +74,7 @@ public abstract class GraphManagerIT {
 
     @Before
     public void mockApp() {
-        this.scope = new ApplicationScopeImpl(createId("application")  );
+        this.scope = new ApplicationScopeImpl( createId( "application" ) );
     }
 
 
@@ -1283,8 +1283,8 @@ public abstract class GraphManagerIT {
         final long maxVersion = System.currentTimeMillis();
 
         Iterator<Edge> results =
-                gm.loadEdgesFromSource( createSearchByEdge( sourceId, edge1.getType(), maxVersion, null ) )
-                  .toBlocking().getIterator();
+                gm.loadEdgesFromSource( createSearchByEdge( sourceId, edge1.getType(), maxVersion, null ) ).toBlocking()
+                  .getIterator();
 
 
         assertEquals( "Edge found", edge2, results.next() );
@@ -1320,8 +1320,9 @@ public abstract class GraphManagerIT {
 
         //now re-read, nothing should be there since they're marked
 
-        results = gm.loadEdgesFromSource( createSearchByEdge( sourceId, edge1.getType(), maxVersion, null ) )
-                    .toBlocking().getIterator();
+        results =
+                gm.loadEdgesFromSource( createSearchByEdge( sourceId, edge1.getType(), maxVersion, null ) ).toBlocking()
+                  .getIterator();
 
         assertFalse( "No more edges", results.hasNext() );
 
@@ -1365,8 +1366,8 @@ public abstract class GraphManagerIT {
         final long maxVersion = System.currentTimeMillis();
 
         Iterator<Edge> results =
-                gm.loadEdgesToTarget( createSearchByEdge( targetId, edge1.getType(), maxVersion, null ) )
-                  .toBlocking().getIterator();
+                gm.loadEdgesToTarget( createSearchByEdge( targetId, edge1.getType(), maxVersion, null ) ).toBlocking()
+                  .getIterator();
 
 
         assertEquals( "Edge found", edge2, results.next() );
@@ -1402,8 +1403,8 @@ public abstract class GraphManagerIT {
 
         //now re-read, nothing should be there since they're marked
 
-        results = gm.loadEdgesToTarget( createSearchByEdge( targetId, edge1.getType(), maxVersion, null ) )
-                    .toBlocking().getIterator();
+        results = gm.loadEdgesToTarget( createSearchByEdge( targetId, edge1.getType(), maxVersion, null ) ).toBlocking()
+                    .getIterator();
 
         assertFalse( "No more edges", results.hasNext() );
 
@@ -1476,7 +1477,7 @@ public abstract class GraphManagerIT {
 
 
     @Test
-    public void testSourceSubTypes() {
+    public void testSourceSubTypesPrefix() {
 
         //now test sub edges
         final GraphManager gm = getHelper( emf.createEdgeManager( scope ) );
@@ -1624,7 +1625,7 @@ public abstract class GraphManagerIT {
     }
 
 
-    @Test( expected = NullPointerException.class )
+    @Test(expected = NullPointerException.class)
     public void invalidEdgeTypesWrite( @All Edge edge ) {
         final GraphManager em = emf.createEdgeManager( scope );
 
@@ -1632,7 +1633,7 @@ public abstract class GraphManagerIT {
     }
 
 
-    @Test( expected = NullPointerException.class )
+    @Test(expected = NullPointerException.class)
     public void invalidEdgeTypesDelete( @All Edge edge ) {
         final GraphManager em = emf.createEdgeManager( scope );
 

@@ -24,42 +24,32 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
-import org.apache.cassandra.db.marshal.BooleanType;
-import org.apache.cassandra.db.marshal.BytesType;
-
-import org.apache.usergrid.persistence.core.astyanax.CassandraConfig;
-import org.apache.usergrid.persistence.core.astyanax.IdRowCompositeSerializer;
-import org.apache.usergrid.persistence.core.astyanax.MultiTennantColumnFamily;
-import org.apache.usergrid.persistence.core.astyanax.MultiTennantColumnFamilyDefinition;
-import org.apache.usergrid.persistence.core.astyanax.OrganizationScopedRowKeySerializer;
-import org.apache.usergrid.persistence.core.astyanax.ScopedRowKey;
-import org.apache.usergrid.persistence.core.hystrix.HystrixCassandra;
-import org.apache.usergrid.persistence.core.migration.Migration;
+import org.apache.usergrid.persistence.core.javadriver.BatchStatementUtils;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.core.util.ValidationUtils;
 import org.apache.usergrid.persistence.graph.Edge;
-import org.apache.usergrid.persistence.graph.exception.GraphRuntimeException;
 import org.apache.usergrid.persistence.graph.serialization.NodeSerialization;
 import org.apache.usergrid.persistence.graph.serialization.util.GraphValidation;
 import org.apache.usergrid.persistence.model.entity.Id;
+import org.apache.usergrid.persistence.model.entity.SimpleId;
 
+import com.datastax.driver.core.BoundStatement;
+import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
+import com.datastax.driver.core.Statement;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.inject.Singleton;
-import com.netflix.astyanax.Keyspace;
-import com.netflix.astyanax.MutationBatch;
-import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
-import com.netflix.astyanax.connectionpool.exceptions.NotFoundException;
-import com.netflix.astyanax.model.Column;
-import com.netflix.astyanax.model.Row;
-import com.netflix.astyanax.model.Rows;
-import com.netflix.astyanax.query.ColumnFamilyQuery;
-import com.netflix.astyanax.serializers.BooleanSerializer;
 
 
 /**
@@ -67,79 +57,99 @@ import com.netflix.astyanax.serializers.BooleanSerializer;
  *
  */
 @Singleton
-public class NodeSerializationImpl implements NodeSerialization, Migration {
+public class NodeSerializationImpl implements NodeSerialization {
 
 
-    //Row key by node id.
-    private static final IdRowCompositeSerializer ROW_SERIALIZER = IdRowCompositeSerializer.get();
-
-    private static final BooleanSerializer BOOLEAN_SERIALIZER = BooleanSerializer.get();
-
-    /**
-     * Column name is always just "true"
-     */
-    private static final boolean COLUMN_NAME = true;
 
 
     /**
-     * Columns are always a byte, and the entire value is contained within a row key.  This is intentional This allows
-     * us to make heavy use of Cassandra's bloom filters, as well as key caches. Since most nodes will only exist for a
-     * short amount of time in this CF, we'll most likely have them in the key cache, and we'll also bounce from the
-     * BloomFilter on read.  This means our performance will be no worse than checking a distributed cache in RAM for
-     * the existence of a marked node.
+     * CFs where the row key contains the source node id
      */
-    private static final MultiTennantColumnFamily<ApplicationScope, Id, Boolean> GRAPH_DELETE =
-            new MultiTennantColumnFamily<ApplicationScope, Id, Boolean>( "Graph_Marked_Nodes",
-                    new OrganizationScopedRowKeySerializer<Id>( ROW_SERIALIZER ), BOOLEAN_SERIALIZER );
+    private static final String GRAPH_MARKED_EDGES = "Graph_Marked_Nodes";
+
+    private static final String GRAPH_MARKED_EDGES_CREATE = "CREATE TABLE IF NOT EXISTS " + GRAPH_MARKED_EDGES
+            + " ( scopeId uuid, scopeType varchar, nodeId uuid, nodeType varchar, timestamp bigint,  PRIMARY KEY ((scopeId , scopeType, nodeId, nodeType)) ) WITH caching = 'all';";
 
 
-    protected final Keyspace keyspace;
-    protected final CassandraConfig fig;
+    protected final Session session;
+    private PreparedStatement insert;
+    private PreparedStatement delete;
+    private PreparedStatement select;
 
 
     @Inject
-    public NodeSerializationImpl( final Keyspace keyspace, final CassandraConfig fig ) {
-        this.keyspace = keyspace;
-        this.fig = fig;
+    public NodeSerializationImpl( final Session session ) {
+        this.session = session;
+    }
+
+
+    @PostConstruct
+    public void setup() {
+
     }
 
 
     @Override
-    public Collection<MultiTennantColumnFamilyDefinition> getColumnFamilies() {
-        return Collections.singleton(
-                new MultiTennantColumnFamilyDefinition( GRAPH_DELETE, BytesType.class.getSimpleName(),
-                        BooleanType.class.getSimpleName(), BytesType.class.getSimpleName(),
-                        MultiTennantColumnFamilyDefinition.CacheOption.ALL ) );
+    public Collection<String> getColumnFamilies() {
+        return Collections.singleton( GRAPH_MARKED_EDGES_CREATE );
     }
 
 
     @Override
-    public MutationBatch mark( final ApplicationScope scope, final Id node, final long timestamp ) {
+    public void prepareStatements() {
+        this.insert = this.session.prepare( "INSERT INTO " + GRAPH_MARKED_EDGES
+                + " (scopeId, scopeType , nodeId, nodeType, timestamp) VALUES (?, ?, ?, ?, " +
+                "? ) USING TIMESTAMP ?" );
+
+        this.delete = this.session.prepare( "DELETE FROM " + GRAPH_MARKED_EDGES
+                + " USING TIMESTAMP ? WHERE scopeId = ? AND scopeType = ? AND nodeId = ? AND nodeType = ? " );
+
+
+        this.select = this.session.prepare( "SELECT timestamp FROM " + GRAPH_MARKED_EDGES
+                + " WHERE scopeId = ? AND scopeType = ? AND nodeId = ? AND nodeType = ? " );
+    }
+
+
+    @Override
+    public Collection<? extends Statement> mark( final ApplicationScope scope, final Id node, final long timestamp ) {
         ValidationUtils.validateApplicationScope( scope );
         ValidationUtils.verifyIdentity( node );
         GraphValidation.validateTimestamp( timestamp, "timestamp" );
 
-        MutationBatch batch = keyspace.prepareMutationBatch().withConsistencyLevel( fig.getWriteCL() );
+        final Id applicationId = scope.getApplication();
+        final UUID applicationUuid = applicationId.getUuid();
+        final String applicationType = applicationId.getType();
 
-        batch.withRow( GRAPH_DELETE, ScopedRowKey.fromKey( scope, node ) ).setTimestamp( timestamp )
-             .putColumn( COLUMN_NAME, timestamp );
+        final UUID nodeUuid = node.getUuid();
+        final String nodeType = node.getType();
 
-        return batch;
+        final BoundStatement statement =
+                this.insert.bind( applicationUuid, applicationType, nodeUuid, nodeType, timestamp, timestamp );
+
+
+        return Collections.singleton( statement );
     }
 
 
     @Override
-    public MutationBatch delete( final ApplicationScope scope, final Id node, final long timestamp ) {
+    public Collection<? extends Statement> delete( final ApplicationScope scope, final Id node, final long timestamp ) {
         ValidationUtils.validateApplicationScope( scope );
         ValidationUtils.verifyIdentity( node );
         GraphValidation.validateTimestamp( timestamp, "timestamp" );
 
-        MutationBatch batch = keyspace.prepareMutationBatch().withConsistencyLevel( fig.getWriteCL() );
+        final Id applicationId = scope.getApplication();
+        final UUID applicationUuid = applicationId.getUuid();
+        final String applicationType = applicationId.getType();
 
-        batch.withRow( GRAPH_DELETE, ScopedRowKey.fromKey( scope, node ) ).setTimestamp( timestamp )
-             .deleteColumn( COLUMN_NAME );
+        final UUID nodeUuid = node.getUuid();
+        final String nodeType = node.getType();
 
-        return batch;
+
+        final BoundStatement statement =
+                this.delete.bind(timestamp, applicationUuid, applicationType, nodeUuid, nodeType );
+
+
+        return Collections.singleton( statement );
     }
 
 
@@ -148,26 +158,27 @@ public class NodeSerializationImpl implements NodeSerialization, Migration {
         ValidationUtils.validateApplicationScope( scope );
         ValidationUtils.verifyIdentity( node );
 
-        ColumnFamilyQuery<ScopedRowKey<ApplicationScope, Id>, Boolean> query =
-                keyspace.prepareQuery( GRAPH_DELETE ).setConsistencyLevel( fig.getReadCL() );
+        final Id applicationId = scope.getApplication();
+        final UUID applicationUuid = applicationId.getUuid();
+        final String applicationType = applicationId.getType();
+
+        final UUID nodeUuid = node.getUuid();
+        final String nodeType = node.getType();
 
 
-        try {
-            Column<Boolean> result = HystrixCassandra
-                    .user( query.getKey( ScopedRowKey.fromKey( scope, node ) ).getColumn( COLUMN_NAME ) )
-                    .getResult();
+        final BoundStatement statement =
+                this.select.bind( applicationUuid, applicationType, nodeUuid, nodeType );
 
-            return Optional.of( result.getLongValue() );
-        }
-        catch (RuntimeException re ) {
-            if(re.getCause().getCause() instanceof   NotFoundException) {
-                //swallow, there's just no column
-                return Optional.absent();
-            }
 
-            throw re;
+        final Row row = session.execute( statement ).one();
+
+        if ( row == null  ) {
+            return Optional.absent();
         }
 
+        final Long timestamp = row.getLong( "timestamp" );
+
+        return Optional.of( timestamp );
     }
 
 
@@ -176,33 +187,67 @@ public class NodeSerializationImpl implements NodeSerialization, Migration {
         ValidationUtils.validateApplicationScope( scope );
         Preconditions.checkNotNull( edges, "edges cannot be null" );
 
+        final Id applicationId = scope.getApplication();
+        final UUID applicationScopeId = applicationId.getUuid();
+        final String applicationScopeType = applicationId.getType();
 
-        final ColumnFamilyQuery<ScopedRowKey<ApplicationScope, Id>, Boolean> query =
-                keyspace.prepareQuery( GRAPH_DELETE ).setConsistencyLevel( fig.getReadCL() );
-
-
-        final List<ScopedRowKey<ApplicationScope, Id>> keys =
-                new ArrayList<ScopedRowKey<ApplicationScope, Id>>( edges.size() );
+        final Set<Id> uniqueIds = new HashSet<>( edges.size() );
 
         //worst case all are marked
         final Map<Id, Long> versions = new HashMap<>( edges.size() );
 
         for ( final Edge edge : edges ) {
-            keys.add( ScopedRowKey.fromKey( scope, edge.getSourceNode() ) );
-            keys.add( ScopedRowKey.fromKey( scope, edge.getTargetNode() ) );
+            uniqueIds.add( edge.getSourceNode() );
+            uniqueIds.add( edge.getTargetNode() );
+        }
+//
+//        List<Statement> statements = new ArrayList<>(uniqueIds.size());
+//
+//        for(Id uniqueId : uniqueIds){
+//            final BoundStatement bound = select.bind( applicationScopeId, applicationScopeType, uniqueId.getUuid(), uniqueId.getType() );
+//
+//            statements.add( bound );
+//        }
+//
+//        final Prep
+//
+
+        final StringBuilder nodeIdInClause = new StringBuilder(  );
+        final StringBuilder nodeTypeInClause = new StringBuilder(   );
+
+        for ( Id uniqueId : uniqueIds ) {
+
+
+            nodeIdInClause.append( uniqueId.getUuid() ).append( " ," );
+            nodeTypeInClause.append("'").append( uniqueId.getType() ) .append( "' ," );
         }
 
+        nodeIdInClause.deleteCharAt( nodeIdInClause.length() - 1);
+        nodeTypeInClause.deleteCharAt( nodeTypeInClause.length() - 1);
 
-        final Rows<ScopedRowKey<ApplicationScope, Id>, Boolean> results = HystrixCassandra
-                .user( query.getRowSlice( keys ).withColumnSlice( Collections.singletonList( COLUMN_NAME ) ) )
-                .getResult();
+        final StringBuilder builder = new StringBuilder( uniqueIds.size() * 50 );
 
-        for ( Row<ScopedRowKey<ApplicationScope, Id>, Boolean> row : results ) {
-            Column<Boolean> column = row.getColumns().getColumnByName( COLUMN_NAME );
+               builder.append( "select timestamp from " ).append( GRAPH_MARKED_EDGES )
+                      .append( " WHERE scopeId = ").append(applicationScopeId).append(" AND  scopeType = '").append(applicationScopeType  ).append("' AND nodeId IN ( " ).append(nodeIdInClause).append(" ) AND nodeType IN ( ").append(nodeTypeInClause ).append( " )" );
 
-            if ( column != null ) {
-                versions.put( row.getKey().getKey(), column.getLongValue() );
-            }
+
+
+
+
+        final List<Row> results = session.execute(builder.toString()).all();
+
+
+        for ( Row row : results ) {
+
+            final long timestamp = row.getLong( "timestamp" );
+            final UUID nodeUuid = row.getUUID( "nodeId" );
+            final String nodeType = row.getString( "nodeType" );
+
+
+            final Id nodeId = new SimpleId( nodeUuid, nodeType );
+
+
+            versions.put( nodeId, timestamp );
         }
 
 

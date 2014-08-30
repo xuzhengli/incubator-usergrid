@@ -20,6 +20,7 @@
 package org.apache.usergrid.persistence.graph.serialization;
 
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.UUID;
 
@@ -29,6 +30,7 @@ import org.apache.usergrid.persistence.graph.SearchByEdge;
 import org.apache.usergrid.persistence.graph.SearchByEdgeType;
 import org.apache.usergrid.persistence.graph.SearchByIdType;
 
+import com.datastax.driver.core.Statement;
 import com.netflix.astyanax.MutationBatch;
 
 
@@ -44,7 +46,7 @@ public interface EdgeSerialization {
      * @param scope The org scope of the graph
      * @param edge The edge to write
      */
-    MutationBatch writeEdge( ApplicationScope scope, MarkedEdge edge, UUID timestamp );
+    Collection<? extends Statement> writeEdge( ApplicationScope scope, MarkedEdge edge, UUID timestamp );
 
     /**
      * EdgeWrite both the source -->target edge and the target<--- source edge into the mutation
@@ -52,7 +54,7 @@ public interface EdgeSerialization {
      * @param scope The org scope of the graph
      * @param edge The edge to write
      */
-    MutationBatch deleteEdge( ApplicationScope scope, MarkedEdge edge, UUID timestamp );
+    Collection<? extends Statement>  deleteEdge( ApplicationScope scope, MarkedEdge edge, UUID timestamp );
 
 
     /**

@@ -23,11 +23,13 @@ package org.apache.usergrid.persistence.graph.serialization;
 import java.util.Collection;
 import java.util.Map;
 
+import org.apache.usergrid.persistence.core.migration.DatastaxMigration;
 import org.apache.usergrid.persistence.core.migration.Migration;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.graph.Edge;
 import org.apache.usergrid.persistence.model.entity.Id;
 
+import com.datastax.driver.core.Statement;
 import com.google.common.base.Optional;
 import com.netflix.astyanax.MutationBatch;
 
@@ -35,7 +37,7 @@ import com.netflix.astyanax.MutationBatch;
 /**
  * Simple interface for serializing node information for mark/sweep
  */
-public interface NodeSerialization extends Migration {
+public interface NodeSerialization extends DatastaxMigration {
 
 
     /**
@@ -45,7 +47,7 @@ public interface NodeSerialization extends Migration {
      * @param node The node to mark
      * @param timestamp The timestamp to mark for deletion.  Anything <= this time is considered deleted from the graph
      */
-    MutationBatch mark( ApplicationScope scope, Id node, long timestamp );
+    Collection<? extends Statement> mark( ApplicationScope scope, Id node, long timestamp );
 
 
     /**
@@ -54,7 +56,7 @@ public interface NodeSerialization extends Migration {
      * @param node
      * @return
      */
-    MutationBatch delete( ApplicationScope scope, Id node, long timestamp );
+    Collection<? extends Statement> delete( ApplicationScope scope, Id node, long timestamp );
 
     /**
      * Get the maximum timestamp of a node marked for deletion.  If the node has no mark

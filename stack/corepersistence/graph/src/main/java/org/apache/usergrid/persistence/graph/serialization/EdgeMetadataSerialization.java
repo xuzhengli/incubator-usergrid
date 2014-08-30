@@ -20,8 +20,10 @@
 package org.apache.usergrid.persistence.graph.serialization;
 
 
+import java.util.Collection;
 import java.util.Iterator;
 
+import org.apache.usergrid.persistence.core.migration.DatastaxMigration;
 import org.apache.usergrid.persistence.core.migration.Migration;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.graph.Edge;
@@ -29,19 +31,20 @@ import org.apache.usergrid.persistence.graph.SearchEdgeType;
 import org.apache.usergrid.persistence.graph.SearchIdType;
 import org.apache.usergrid.persistence.model.entity.Id;
 
+import com.datastax.driver.core.Statement;
 import com.netflix.astyanax.MutationBatch;
 
 
 /**
  * Simple interface for serializing an edge meta data
  */
-public interface EdgeMetadataSerialization extends Migration {
+public interface EdgeMetadataSerialization extends DatastaxMigration {
 
 
     /**
      * EdgeWrite both the source--->Target edge and the target <----- source edge into the mutation
      */
-    MutationBatch writeEdge( ApplicationScope scope, Edge edge );
+    Collection<? extends Statement> writeEdge( ApplicationScope scope, Edge edge );
 
     /**
      * Remove all meta data from the source to the target type.  The caller must ensure that this is the last edge with
@@ -52,7 +55,7 @@ public interface EdgeMetadataSerialization extends Migration {
      *
      * @return a mutation batch with the delete operations
      */
-    MutationBatch removeEdgeTypeFromSource( ApplicationScope scope, Edge edge );
+    Collection<? extends Statement>  removeEdgeTypeFromSource( ApplicationScope scope, Edge edge );
 
 
     /**
@@ -65,7 +68,7 @@ public interface EdgeMetadataSerialization extends Migration {
      *
      * @return A mutation batch to use on issuing the delelete
      */
-    MutationBatch removeEdgeTypeFromSource( ApplicationScope scope, Id sourceNode, String type, long timestamp );
+    Collection<? extends Statement>  removeEdgeTypeFromSource( ApplicationScope scope, Id sourceNode, String type, long timestamp );
 
     /**
      * Remove all meta data from the source to the target type.  The caller must ensure that this is the last edge with
@@ -76,7 +79,7 @@ public interface EdgeMetadataSerialization extends Migration {
      *
      * @return a mutation batch with the delete operations
      */
-    MutationBatch removeIdTypeFromSource( ApplicationScope scope, Edge edge );
+    Collection<? extends Statement>  removeIdTypeFromSource( ApplicationScope scope, Edge edge );
 
 
     /**
@@ -91,7 +94,7 @@ public interface EdgeMetadataSerialization extends Migration {
      *
      * @return a mutation batch with the delete operations
      */
-    MutationBatch removeIdTypeFromSource( ApplicationScope scope, Id sourceNode, String type, String idType,
+    Collection<? extends Statement>  removeIdTypeFromSource( ApplicationScope scope, Id sourceNode, String type, String idType,
                                           long timestamp );
 
     /**
@@ -103,7 +106,7 @@ public interface EdgeMetadataSerialization extends Migration {
      *
      * @return a mutation batch with the delete operations
      */
-    MutationBatch removeEdgeTypeToTarget( ApplicationScope scope, Edge edge );
+    Collection<? extends Statement>  removeEdgeTypeToTarget( ApplicationScope scope, Edge edge );
 
 
     /**
@@ -117,7 +120,7 @@ public interface EdgeMetadataSerialization extends Migration {
      *
      * @return A mutation batch to use on issuing the delelete
      */
-    MutationBatch removeEdgeTypeToTarget( ApplicationScope scope, Id targetNode, String type, long timestamp );
+    Collection<? extends Statement>  removeEdgeTypeToTarget( ApplicationScope scope, Id targetNode, String type, long timestamp );
 
 
     /**
@@ -129,7 +132,7 @@ public interface EdgeMetadataSerialization extends Migration {
      *
      * @return a mutation batch with the delete operations
      */
-    MutationBatch removeIdTypeToTarget( ApplicationScope scope, Edge edge );
+    Collection<? extends Statement>  removeIdTypeToTarget( ApplicationScope scope, Edge edge );
 
 
     /**
@@ -144,7 +147,7 @@ public interface EdgeMetadataSerialization extends Migration {
      *
      * @return a mutation batch with the delete operations
      */
-    MutationBatch removeIdTypeToTarget( ApplicationScope scope, Id targetNode, String type, String idType,
+    Collection<? extends Statement>  removeIdTypeToTarget( ApplicationScope scope, Id targetNode, String type, String idType,
                                         long timestamp );
 
     /**

@@ -18,41 +18,19 @@
  *  * under the License.
  *
  */
-package org.apache.usergrid.persistence.core.javadriver;
-
-
-import org.apache.usergrid.persistence.core.astyanax.CassandraFig;
-
-import com.datastax.driver.core.Session;
-import com.google.inject.Inject;
-import com.google.inject.Provider;
-import com.google.inject.Singleton;
+package org.apache.usergrid.persistence.core.migration;
 
 
 /**
- * TODO.  Provide the ability to do a service hook for realtime tuning without the need of a JVM restart This could be
- * done with governator and service discovery
+ * A manager that will perform any migrations necessary.  Setup code should invoke the implementation of this interface
  *
  * @author tnine
  */
-@Singleton
-public class DatastaxSessionProvider implements Provider<Session> {
+public interface DatastaxMigrationManager {
 
-    private final HystrixPool pool;
-    private final Session session;
-
-
-    @Inject
-    public DatastaxSessionProvider( final CassandraFig cassandraFig ) {
-
-        pool = new HystrixPoolImpl( new GuicyFigPoolConfiguration( cassandraFig ) );
-        session = pool.getSession( "usergrid" );
-
-    }
-
-
-    @Override
-    public Session get() {
-        return session;
-    }
+    /**
+     * Perform any migration necessary in the application.  Will only create keyspaces and column families if they do
+     * not exist
+     */
+    public void migrate() throws MigrationException;
 }

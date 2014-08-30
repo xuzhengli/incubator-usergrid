@@ -133,7 +133,7 @@ public class HystrixSessionTest {
 
         final String keyspaceCreate =
                 "CREATE KEYSPACE " + keyspaceName + " WITH REPLICATION = { 'class' : 'SimpleStrategy', "
-                        + "'replication_factor' : 3 };";
+                        + "'replication_factor' : 1 };";
 
         final String createColumnFamily = "CREATE TABLE " + tableName + " ( " +
                 "entry_id uuid, " +

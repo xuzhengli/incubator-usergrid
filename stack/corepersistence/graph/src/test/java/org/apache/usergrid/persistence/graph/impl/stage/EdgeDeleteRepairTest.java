@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.usergrid.persistence.collection.guice.MigrationManagerRule;
 import org.apache.usergrid.persistence.core.cassandra.ITRunner;
+import org.apache.usergrid.persistence.core.javadriver.BatchStatementUtils;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.graph.MarkedEdge;
 import org.apache.usergrid.persistence.graph.SearchByEdgeType;
@@ -41,6 +42,7 @@ import org.apache.usergrid.persistence.graph.serialization.EdgeSerialization;
 import org.apache.usergrid.persistence.model.entity.Id;
 import org.apache.usergrid.persistence.model.util.UUIDGenerator;
 
+import com.datastax.driver.core.Session;
 import com.google.inject.Inject;
 import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
 
@@ -75,6 +77,9 @@ public class EdgeDeleteRepairTest {
 
     @Inject
     protected EdgeDeleteRepair edgeDeleteRepair;
+
+    @Inject
+    protected Session session;
 
 
     protected ApplicationScope scope;
@@ -122,11 +127,12 @@ public class EdgeDeleteRepairTest {
 
         //write it as non deleted to storage
 
-        storageEdgeSerialization.writeEdge( scope, edge1,  UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session,
+        storageEdgeSerialization.writeEdge( scope, edge1, UUIDGenerator.newTimeUUID() ));
 
 
         final MarkedEdge edge2 = createEdge( sourceId, edgeType, targetId );
-        storageEdgeSerialization.writeEdge( scope, edge2, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edge2, UUIDGenerator.newTimeUUID() ));
 
         //now repair delete the first edge
 

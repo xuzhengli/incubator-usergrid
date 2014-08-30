@@ -21,6 +21,7 @@ package org.apache.usergrid.persistence.graph.impl.stage;
 
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -28,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.usergrid.persistence.core.hystrix.HystrixCassandra;
+import org.apache.usergrid.persistence.core.javadriver.BatchStatementUtils;
 import org.apache.usergrid.persistence.core.rx.ObservableIterator;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.core.util.ValidationUtils;
@@ -41,6 +43,9 @@ import org.apache.usergrid.persistence.graph.serialization.EdgeSerialization;
 import org.apache.usergrid.persistence.graph.serialization.util.GraphValidation;
 import org.apache.usergrid.persistence.model.entity.Id;
 
+import com.datastax.driver.core.BatchStatement;
+import com.datastax.driver.core.Session;
+import com.datastax.driver.core.Statement;
 import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -65,23 +70,22 @@ public class EdgeMetaRepairImpl implements EdgeMetaRepair {
 
     private final EdgeMetadataSerialization edgeMetadataSerialization;
     private final EdgeSerialization storageEdgeSerialization;
-    private final Keyspace keyspace;
+    private final Session session;
     private final GraphFig graphFig;
 
 
     @Inject
-    public EdgeMetaRepairImpl( final EdgeMetadataSerialization edgeMetadataSerialization, final Keyspace keyspace,
+    public EdgeMetaRepairImpl( final EdgeMetadataSerialization edgeMetadataSerialization, final Session session,
                                final GraphFig graphFig, final EdgeSerialization storageEdgeSerialization ) {
 
 
-        Preconditions.checkNotNull( "edgeMetadataSerialization is required", edgeMetadataSerialization );
-        Preconditions.checkNotNull( "storageEdgeSerialization is required", storageEdgeSerialization );
-        Preconditions.checkNotNull( "consistencyFig is required", graphFig );
-        Preconditions.checkNotNull( "cassandraConfig is required", graphFig );
-        Preconditions.checkNotNull( "keyspace is required", keyspace );
+        Preconditions.checkNotNull( edgeMetadataSerialization, "edgeMetadataSerialization is required" );
+        Preconditions.checkNotNull( storageEdgeSerialization, "storageEdgeSerialization is required" );
+        Preconditions.checkNotNull( graphFig, "graphFig is required" );
+        Preconditions.checkNotNull( session, "session is required" );
 
         this.edgeMetadataSerialization = edgeMetadataSerialization;
-        this.keyspace = keyspace;
+        this.session = session;
         this.graphFig = graphFig;
         this.storageEdgeSerialization = storageEdgeSerialization;
     }
@@ -122,8 +126,7 @@ public class EdgeMetaRepairImpl implements EdgeMetaRepair {
                     public Observable<Integer> call( final List<String> types ) {
 
 
-                        final MutationBatch batch = keyspace.prepareMutationBatch();
-
+                        final BatchStatement batch = BatchStatementUtils.fastStatement();
                         final List<Observable<Integer>> checks = new ArrayList<Observable<Integer>>( types.size() );
 
                         //for each id type, check if the exist in parallel to increase processing speed
@@ -161,9 +164,11 @@ public class EdgeMetaRepairImpl implements EdgeMetaRepair {
                                                          LOG.debug( "No edges with nodeId {}, type {}, "
                                                                          + "and subtype {}. Removing subtype.", node,
                                                                  edgeType, subType );
-                                                         batch.mergeShallow( serialization
-                                                                 .removeEdgeSubType( scope, node, edgeType, subType,
-                                                                         maxTimestamp ) );
+
+                                                         final Collection<? extends Statement> statements =  serialization.removeEdgeSubType(
+                                                                 scope, node, edgeType, subType, maxTimestamp );
+
+                                                         batch.addAll( statements );
                                                      }
                                                  } );
 
@@ -185,9 +190,9 @@ public class EdgeMetaRepairImpl implements EdgeMetaRepair {
                                                                         "Executing batch for subtype deletion with " +
                                                                                 "type {}.  "
                                                                                 + "Mutation has {} rows to mutate ",
-                                                                        edgeType, batch.getRowCount() );
+                                                                        edgeType, batch.getStatements().size() );
 
-                                                                HystrixCassandra.async( batch );
+                                                                session.execute( batch );
                                                             }
                                                         }
 
@@ -218,7 +223,7 @@ public class EdgeMetaRepairImpl implements EdgeMetaRepair {
 
                 LOG.debug( "Type {} has no subtypes in use as of maxTimestamp {}.  Deleting type.", edgeType,
                         maxTimestamp );
-                HystrixCassandra.async( serialization.removeEdgeType( scope, node, edgeType, maxTimestamp ) );
+                BatchStatementUtils.runBatches(session, serialization.removeEdgeType( scope, node, edgeType, maxTimestamp ) );
             }
         } );
     }
@@ -245,14 +250,15 @@ public class EdgeMetaRepairImpl implements EdgeMetaRepair {
         /**
          * Remove the sub type specified
          */
-        MutationBatch removeEdgeSubType( final ApplicationScope scope, final Id nodeId, final String edgeType,
-                                         final String subType, final long maxTimestamp );
+        java.util.Collection<? extends com.datastax.driver.core.Statement> removeEdgeSubType(
+                final ApplicationScope scope, final Id nodeId, final String type, final String subType,
+                final long maxTimestamp );
 
         /**
          * Remove the edge type
          */
-        MutationBatch removeEdgeType( final ApplicationScope scope, final Id nodeId, final String type,
-                                      final long maxTimestamp );
+        Collection<? extends Statement> removeEdgeType( final ApplicationScope scope, final Id nodeId,
+                                                        final String type, final long maxTimestamp );
     }
 
 
@@ -292,15 +298,16 @@ public class EdgeMetaRepairImpl implements EdgeMetaRepair {
 
 
         @Override
-        public MutationBatch removeEdgeSubType( final ApplicationScope scope, final Id nodeId, final String type,
-                                                final String subType, final long maxTimestamp ) {
+        public Collection<? extends Statement> removeEdgeSubType(
+                final ApplicationScope scope, final Id nodeId, final String type, final String subType,
+                final long maxTimestamp ) {
             return edgeMetadataSerialization.removeIdTypeToTarget( scope, nodeId, type, subType, maxTimestamp );
         }
 
 
         @Override
-        public MutationBatch removeEdgeType( final ApplicationScope scope, final Id nodeId, final String type,
-                                             final long maxTimestamp ) {
+        public Collection<? extends Statement> removeEdgeType( final ApplicationScope scope, final Id nodeId,
+                                                               final String type, final long maxTimestamp ) {
             return edgeMetadataSerialization.removeEdgeTypeToTarget( scope, nodeId, type, maxTimestamp );
         }
     };
@@ -338,15 +345,16 @@ public class EdgeMetaRepairImpl implements EdgeMetaRepair {
 
 
         @Override
-        public MutationBatch removeEdgeSubType( final ApplicationScope scope, final Id nodeId, final String type,
-                                                final String subType, final long maxTimestamp ) {
+        public java.util.Collection<? extends com.datastax.driver.core.Statement> removeEdgeSubType(
+                final ApplicationScope scope, final Id nodeId, final String type, final String subType,
+                final long maxTimestamp ) {
             return edgeMetadataSerialization.removeIdTypeFromSource( scope, nodeId, type, subType, maxTimestamp );
         }
 
 
         @Override
-        public MutationBatch removeEdgeType( final ApplicationScope scope, final Id nodeId, final String type,
-                                             final long maxTimestamp ) {
+        public Collection<? extends Statement> removeEdgeType( final ApplicationScope scope, final Id nodeId,
+                                                               final String type, final long maxTimestamp ) {
             return edgeMetadataSerialization.removeEdgeTypeFromSource( scope, nodeId, type, maxTimestamp );
         }
     };

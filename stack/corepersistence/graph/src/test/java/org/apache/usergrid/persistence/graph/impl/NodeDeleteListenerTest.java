@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.usergrid.persistence.collection.guice.MigrationManagerRule;
 import org.apache.usergrid.persistence.core.cassandra.ITRunner;
+import org.apache.usergrid.persistence.core.javadriver.BatchStatementUtils;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.graph.Edge;
 import org.apache.usergrid.persistence.graph.GraphFig;
@@ -47,6 +48,7 @@ import org.apache.usergrid.persistence.graph.serialization.NodeSerialization;
 import org.apache.usergrid.persistence.model.entity.Id;
 import org.apache.usergrid.persistence.model.util.UUIDGenerator;
 
+import com.datastax.driver.core.Session;
 import com.google.inject.Inject;
 import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
 
@@ -95,6 +97,9 @@ public class NodeDeleteListenerTest {
 
     @Inject
     protected GraphFig graphFig;
+
+    @Inject
+    protected Session session;
 
 
     protected ApplicationScope scope;
@@ -169,7 +174,7 @@ public class NodeDeleteListenerTest {
         UUID deleteEventTimestamp = UUIDGenerator.newTimeUUID();
         long timestamp = System.currentTimeMillis();
 
-        nodeSerialization.mark( scope, sourceNode, timestamp ).execute();
+        BatchStatementUtils.runBatches( session, nodeSerialization.mark( scope, sourceNode, timestamp ));
 
         int count = deleteListener.receive( scope, sourceNode, deleteEventTimestamp ).toBlocking().last();
 
@@ -254,7 +259,7 @@ public class NodeDeleteListenerTest {
         //mark the node so
         final long deleteBefore = System.currentTimeMillis();
 
-        nodeSerialization.mark( scope, targetNode, deleteBefore ).execute();
+        BatchStatementUtils.runBatches( session, nodeSerialization.mark( scope, targetNode, deleteBefore ));
 
         int count = deleteListener.receive( scope, targetNode, UUIDGenerator.newTimeUUID() ).toBlocking().last();
 
@@ -364,7 +369,7 @@ public class NodeDeleteListenerTest {
 
         long deleteVersion = Long.MAX_VALUE;
 
-        nodeSerialization.mark( scope, toDelete, deleteVersion ).execute();
+        BatchStatementUtils.runBatches( session, nodeSerialization.mark( scope, toDelete, deleteVersion ));
 
         int count = deleteListener.receive( scope, toDelete, UUIDGenerator.newTimeUUID() ).toBlocking().last();
 

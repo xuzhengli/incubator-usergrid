@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.usergrid.persistence.collection.guice.MigrationManagerRule;
 import org.apache.usergrid.persistence.core.cassandra.ITRunner;
+import org.apache.usergrid.persistence.core.javadriver.BatchStatementUtils;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.graph.GraphFig;
 import org.apache.usergrid.persistence.graph.GraphManagerFactory;
@@ -45,6 +46,7 @@ import org.apache.usergrid.persistence.graph.serialization.EdgeSerialization;
 import org.apache.usergrid.persistence.model.entity.Id;
 import org.apache.usergrid.persistence.model.util.UUIDGenerator;
 
+import com.datastax.driver.core.Session;
 import com.google.inject.Inject;
 import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
 
@@ -83,7 +85,7 @@ public class EdgeDeleteListenerTest {
 
 
     @Inject
-    protected GraphManagerFactory emf;
+    protected Session session;
 
 
     @Inject
@@ -123,9 +125,9 @@ public class EdgeDeleteListenerTest {
         MarkedEdge edgeV3 = createMarkedEdge( sourceId, edgeType, targetId, edgeTimestamp + 2 );
 
 
-        storageEdgeSerialization.writeEdge( scope, edgeV1, UUIDGenerator.newTimeUUID() ).execute();
-        storageEdgeSerialization.writeEdge( scope, edgeV2, UUIDGenerator.newTimeUUID() ).execute();
-        storageEdgeSerialization.writeEdge( scope, edgeV3, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edgeV1, UUIDGenerator.newTimeUUID() ));
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edgeV2, UUIDGenerator.newTimeUUID() ));
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edgeV3, UUIDGenerator.newTimeUUID() ));
 
 
 
@@ -218,13 +220,13 @@ public class EdgeDeleteListenerTest {
 
         final UUID foobar = UUIDGenerator.newTimeUUID();
 
-        storageEdgeSerialization.writeEdge( scope, edgeV1, foobar ).execute();
-        storageEdgeSerialization.writeEdge( scope, edgeV2, foobar ).execute();
-        storageEdgeSerialization.writeEdge( scope, edgeV3, foobar ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edgeV1, foobar ));
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edgeV2, foobar ));
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edgeV3, foobar ));
 
-        edgeMetadataSerialization.writeEdge( scope, edgeV1 ).execute();
-        edgeMetadataSerialization.writeEdge( scope, edgeV2 ).execute();
-        edgeMetadataSerialization.writeEdge( scope, edgeV3 ).execute();
+        BatchStatementUtils.runBatches( session, edgeMetadataSerialization.writeEdge( scope, edgeV1 ));
+        BatchStatementUtils.runBatches( session, edgeMetadataSerialization.writeEdge( scope, edgeV2 ));
+        BatchStatementUtils.runBatches( session, edgeMetadataSerialization.writeEdge( scope, edgeV3 ));
 
 
         //now perform the listener execution, should only clean up to edge v2

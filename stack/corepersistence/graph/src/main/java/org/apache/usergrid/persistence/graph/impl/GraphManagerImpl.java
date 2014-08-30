@@ -20,6 +20,7 @@
 package org.apache.usergrid.persistence.graph.impl;
 
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.usergrid.persistence.core.hystrix.HystrixCassandra;
+import org.apache.usergrid.persistence.core.javadriver.BatchStatementUtils;
 import org.apache.usergrid.persistence.core.rx.ObservableIterator;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.core.util.ValidationUtils;
@@ -50,11 +51,12 @@ import org.apache.usergrid.persistence.graph.serialization.util.GraphValidation;
 import org.apache.usergrid.persistence.model.entity.Id;
 import org.apache.usergrid.persistence.model.util.UUIDGenerator;
 
+import com.datastax.driver.core.BatchStatement;
+import com.datastax.driver.core.Session;
+import com.datastax.driver.core.Statement;
 import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
-import com.netflix.astyanax.MutationBatch;
-import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
 
 import rx.Observable;
 import rx.Observer;
@@ -87,10 +89,11 @@ public class GraphManagerImpl implements GraphManager {
 
 
     private final GraphFig graphFig;
+    private final Session session;
 
 
     @Inject
-    public GraphManagerImpl( final EdgeMetadataSerialization edgeMetadataSerialization,
+    public GraphManagerImpl( final Session session, final EdgeMetadataSerialization edgeMetadataSerialization,
                              final EdgeSerialization storageEdgeSerialization,
                              final NodeSerialization nodeSerialization, final GraphFig graphFig,
                              @Assisted final ApplicationScope scope, final EdgeDeleteListener edgeDeleteListener,
@@ -98,12 +101,14 @@ public class GraphManagerImpl implements GraphManager {
 
 
         ValidationUtils.validateApplicationScope( scope );
+        Preconditions.checkNotNull( session, "session must not be null" );
         Preconditions.checkNotNull( edgeMetadataSerialization, "edgeMetadataSerialization must not be null" );
         Preconditions.checkNotNull( storageEdgeSerialization, "storageEdgeSerialization must not be null" );
         Preconditions.checkNotNull( nodeSerialization, "nodeSerialization must not be null" );
         Preconditions.checkNotNull( graphFig, "consistencyFig must not be null" );
         Preconditions.checkNotNull( scope, "scope must not be null" );
 
+        this.session = session;
         this.scope = scope;
         this.edgeMetadataSerialization = edgeMetadataSerialization;
         this.storageEdgeSerialization = storageEdgeSerialization;
@@ -130,13 +135,13 @@ public class GraphManagerImpl implements GraphManager {
                 final UUID timestamp = UUIDGenerator.newTimeUUID();
 
 
-                final MutationBatch mutation = edgeMetadataSerialization.writeEdge( scope, edge );
+                final Collection<? extends Statement> mutation = edgeMetadataSerialization.writeEdge( scope, edge );
 
-                final MutationBatch edgeMutation = storageEdgeSerialization.writeEdge( scope, edge, timestamp );
+                final Collection<? extends Statement> edgeMutation =
+                        storageEdgeSerialization.writeEdge( scope, edge, timestamp );
 
-                mutation.mergeShallow( edgeMutation );
 
-                HystrixCassandra.user( mutation );
+                BatchStatementUtils.runBatches(session, mutation, edgeMutation );
 
                 return edge;
             }
@@ -158,12 +163,12 @@ public class GraphManagerImpl implements GraphManager {
                 final UUID timestamp = UUIDGenerator.newTimeUUID();
 
 
-                final MutationBatch edgeMutation = storageEdgeSerialization.writeEdge( scope, edge, timestamp );
+                final Collection<? extends Statement> edgeMutation =
+                        storageEdgeSerialization.writeEdge( scope, edge, timestamp );
 
 
-                LOG.debug( "Marking edge {} as deleted to commit log", edge );
-                HystrixCassandra.user( edgeMutation );
 
+                BatchStatementUtils.runBatches(session, edgeMutation, edgeMutation );
 
                 //HystrixCassandra.async( edgeDeleteListener.receive( scope, markedEdge,
                 // timestamp )).subscribeOn( Schedulers.io() ).subscribe( edgeDeleteSubcriber );
@@ -188,11 +193,14 @@ public class GraphManagerImpl implements GraphManager {
 
                 final UUID eventTimestamp = UUIDGenerator.newTimeUUID();
 
-                final MutationBatch nodeMutation = nodeSerialization.mark( scope, id, timestamp );
+                final Collection<? extends Statement> nodeMutation = nodeSerialization.mark( scope, id, timestamp );
+
+
 
 
                 LOG.debug( "Marking node {} as deleted to node mark", node );
-                HystrixCassandra.user( nodeMutation );
+
+                BatchStatementUtils.runBatches(session, nodeMutation);
 
 
                 //HystrixCassandra.async(nodeDeleteListener.receive(scope, id, eventTimestamp  )).subscribeOn(

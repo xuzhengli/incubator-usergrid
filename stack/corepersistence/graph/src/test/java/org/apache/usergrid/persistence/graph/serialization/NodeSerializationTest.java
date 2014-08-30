@@ -30,11 +30,13 @@ import org.junit.runner.RunWith;
 
 import org.apache.usergrid.persistence.collection.guice.MigrationManagerRule;
 import org.apache.usergrid.persistence.core.cassandra.ITRunner;
+import org.apache.usergrid.persistence.core.javadriver.BatchStatementUtils;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.graph.guice.TestGraphModule;
 import org.apache.usergrid.persistence.model.entity.Id;
 import org.apache.usergrid.persistence.model.util.UUIDGenerator;
 
+import com.datastax.driver.core.Session;
 import com.google.common.base.Optional;
 import com.google.inject.Inject;
 import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
@@ -63,7 +65,13 @@ public class NodeSerializationTest {
     @Inject
     protected NodeSerialization serialization;
 
+
+    @Inject
+    protected Session session;
+
     protected ApplicationScope scope;
+
+
 
 
     @Before
@@ -76,6 +84,9 @@ public class NodeSerializationTest {
         when( orgId.getUuid() ).thenReturn( UUIDGenerator.newTimeUUID() );
 
         when( scope.getApplication() ).thenReturn( orgId );
+
+        //Shouldn't have to do this, Guice not initializing as expected.
+        serialization.prepareStatements();
     }
 
 
@@ -88,13 +99,13 @@ public class NodeSerializationTest {
         final Id nodeId = createId( "test" );
         final long version = System.currentTimeMillis();
 
-        serialization.mark( scope, nodeId, version ).execute();
+        BatchStatementUtils.runBatches( session, serialization.mark( scope, nodeId, version ));
 
         Optional<Long> returned = serialization.getMaxVersion( scope, nodeId );
 
         assertEquals( version, returned.get().longValue() );
 
-        serialization.delete( scope, nodeId, returned.get() ).execute();
+        BatchStatementUtils.runBatches( session, serialization.delete( scope, nodeId, returned.get() ));
 
         returned = serialization.getMaxVersion( scope, nodeId );
 
@@ -132,7 +143,7 @@ public class NodeSerializationTest {
         final long version1 = System.currentTimeMillis();
         final long version2 = version1+1;
 
-        serialization.mark( scope, nodeId, version2 ).execute();
+        BatchStatementUtils.runBatches( session, serialization.mark( scope, nodeId, version2 ));
 
         Optional<Long>returned = serialization.getMaxVersion( scope, nodeId );
 
@@ -140,7 +151,7 @@ public class NodeSerializationTest {
 
         //now write version1, it should be discarded
 
-        serialization.mark( scope, nodeId, version1 ).execute();
+        BatchStatementUtils.runBatches( session, serialization.mark( scope, nodeId, version1 ));
 
         returned = serialization.getMaxVersion( scope, nodeId );
 
@@ -150,14 +161,14 @@ public class NodeSerializationTest {
         assertEquals( version2, returned.get().longValue() );
 
         //perform a delete with v1, we shouldn't lose the column
-        serialization.delete( scope, nodeId, version1 ).execute();
+        BatchStatementUtils.runBatches( session, serialization.delete( scope, nodeId, version1 ));
 
         returned = serialization.getMaxVersion( scope, nodeId );
 
         assertEquals( version2, returned.get().longValue() );
 
         //now delete v2
-        serialization.delete( scope, nodeId, version2 ).execute();
+        BatchStatementUtils.runBatches( session, serialization.delete( scope, nodeId, version2 ));
 
         returned = serialization.getMaxVersion( scope, nodeId );
 
@@ -178,8 +189,8 @@ public class NodeSerializationTest {
 
         final long version = System.currentTimeMillis();
 
-        serialization.mark( scope, nodeId1, version ).execute();
-        serialization.mark( scope, nodeId2, version ).execute();
+        BatchStatementUtils.runBatches( session, serialization.mark( scope, nodeId1, version ));
+        BatchStatementUtils.runBatches( session, serialization.mark( scope, nodeId2, version ));
 
         Map<Id, Long> marks = serialization.getMaxVersions( scope,
                 Arrays.asList( createEdge( nodeId1, "test", nodeId2 ), createEdge( nodeId2, "test", nodeId3 ) ) );

@@ -32,6 +32,7 @@ import org.junit.runner.RunWith;
 
 import org.apache.usergrid.persistence.collection.guice.MigrationManagerRule;
 import org.apache.usergrid.persistence.core.cassandra.ITRunner;
+import org.apache.usergrid.persistence.core.javadriver.BatchStatementUtils;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.graph.GraphFig;
 import org.apache.usergrid.persistence.graph.MarkedEdge;
@@ -43,6 +44,7 @@ import org.apache.usergrid.persistence.graph.serialization.EdgeSerialization;
 import org.apache.usergrid.persistence.model.entity.Id;
 import org.apache.usergrid.persistence.model.util.UUIDGenerator;
 
+import com.datastax.driver.core.Session;
 import com.google.inject.Inject;
 import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
 
@@ -80,6 +82,9 @@ public class EdgeMetaRepairTest {
     @Inject
     protected GraphFig graphFig;
 
+    @Inject
+    protected Session session;
+
     protected ApplicationScope scope;
 
 
@@ -114,9 +119,10 @@ public class EdgeMetaRepairTest {
     public void cleanTargetSingleEdge() throws ConnectionException {
         MarkedEdge edge = createEdge( "source", "test", "target" );
 
-        storageEdgeSerialization.writeEdge( scope, edge, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session,
+        storageEdgeSerialization.writeEdge( scope, edge, UUIDGenerator.newTimeUUID() ));
 
-        edgeMetadataSerialization.writeEdge( scope, edge ).execute();
+        BatchStatementUtils.runBatches( session, edgeMetadataSerialization.writeEdge( scope, edge ));
 
         int value = edgeMetaRepair.repairTargets( scope, edge.getTargetNode(), edge.getType(), edge.getTimestamp() )
                                   .toBlocking().single();
@@ -125,7 +131,7 @@ public class EdgeMetaRepairTest {
 
         //now delete the edge
 
-        storageEdgeSerialization.deleteEdge( scope, edge, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.deleteEdge( scope, edge, UUIDGenerator.newTimeUUID() ));
 
         value = edgeMetaRepair.repairTargets( scope, edge.getTargetNode(), edge.getType(), edge.getTimestamp() )
                               .toBlocking().single();
@@ -155,21 +161,21 @@ public class EdgeMetaRepairTest {
         MarkedEdge edge1 = createEdge( createId( "source1" ), "test", targetId );
 
 
-        storageEdgeSerialization.writeEdge( scope, edge1, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edge1, UUIDGenerator.newTimeUUID() ));
 
-        edgeMetadataSerialization.writeEdge( scope, edge1 ).execute();
+        BatchStatementUtils.runBatches( session, edgeMetadataSerialization.writeEdge( scope, edge1 ));
 
         MarkedEdge edge2 = createEdge( createId( "source2" ), "test", targetId );
 
-        storageEdgeSerialization.writeEdge( scope, edge2, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edge2, UUIDGenerator.newTimeUUID() ));
 
-        edgeMetadataSerialization.writeEdge( scope, edge2 ).execute();
+        BatchStatementUtils.runBatches( session, edgeMetadataSerialization.writeEdge( scope, edge2 ));
 
         MarkedEdge edge3 = createEdge( createId( "source3" ), "test", targetId );
 
-        storageEdgeSerialization.writeEdge( scope, edge3, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edge3, UUIDGenerator.newTimeUUID() ));
 
-        edgeMetadataSerialization.writeEdge( scope, edge3 ).execute();
+        BatchStatementUtils.runBatches( session, edgeMetadataSerialization.writeEdge( scope, edge3 ));
 
 
         long cleanupVersion = System.currentTimeMillis();
@@ -181,21 +187,21 @@ public class EdgeMetaRepairTest {
 
         //now delete the edge
 
-        storageEdgeSerialization.deleteEdge( scope, edge1, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.deleteEdge( scope, edge1, UUIDGenerator.newTimeUUID() ));
 
         value = edgeMetaRepair.repairTargets( scope, edge1.getTargetNode(), edge1.getType(), cleanupVersion )
                               .toBlocking().single();
 
         assertEquals( "No subtypes removed, edges exist", 2, value );
 
-        storageEdgeSerialization.deleteEdge( scope, edge2, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.deleteEdge( scope, edge2, UUIDGenerator.newTimeUUID() ));
 
         value = edgeMetaRepair.repairTargets( scope, edge1.getTargetNode(), edge1.getType(), cleanupVersion )
                               .toBlocking().single();
 
         assertEquals( "No subtypes removed, edges exist", 1, value );
 
-        storageEdgeSerialization.deleteEdge( scope, edge3, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.deleteEdge( scope, edge3, UUIDGenerator.newTimeUUID() ));
 
         value = edgeMetaRepair.repairTargets( scope, edge1.getTargetNode(), edge1.getType(), cleanupVersion )
                               .toBlocking().single();
@@ -212,7 +218,7 @@ public class EdgeMetaRepairTest {
 
 
         Iterator<String> sourceTypes = edgeMetadataSerialization
-                .getIdTypesToTarget( scope, new SimpleSearchIdType( edge1.getTargetNode(), edge1.getType(), null, null ) );
+                .getIdTypesToTarget( scope, new SimpleSearchIdType( edge1.getTargetNode(), edge1.getType(),null,  null ) );
 
         assertFalse( "No edge types exist", sourceTypes.hasNext() );
     }
@@ -232,9 +238,9 @@ public class EdgeMetaRepairTest {
         for ( int i = 0; i < size; i++ ) {
             MarkedEdge edge = createEdge( createId( "source" + i ), edgeType, targetId );
 
-            storageEdgeSerialization.writeEdge( scope, edge, UUIDGenerator.newTimeUUID() ).execute();
+            BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edge, UUIDGenerator.newTimeUUID() ));
 
-            edgeMetadataSerialization.writeEdge( scope, edge ).execute();
+            BatchStatementUtils.runBatches( session, edgeMetadataSerialization.writeEdge( scope, edge ));
 
             writtenEdges.add( edge );
         }
@@ -250,7 +256,7 @@ public class EdgeMetaRepairTest {
         //now delete the edge
 
         for ( MarkedEdge created : writtenEdges ) {
-            storageEdgeSerialization.deleteEdge( scope, created, UUIDGenerator.newTimeUUID() ).execute();
+            BatchStatementUtils.runBatches( session, storageEdgeSerialization.deleteEdge( scope, created, UUIDGenerator.newTimeUUID() ));
         }
 
 
@@ -277,9 +283,9 @@ public class EdgeMetaRepairTest {
     public void cleanSourceSingleEdge() throws ConnectionException {
         MarkedEdge edge = createEdge( "source", "test", "target" );
 
-        storageEdgeSerialization.writeEdge( scope, edge, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edge, UUIDGenerator.newTimeUUID() ));
 
-        edgeMetadataSerialization.writeEdge( scope, edge ).execute();
+        BatchStatementUtils.runBatches( session, edgeMetadataSerialization.writeEdge( scope, edge ));
 
         int value = edgeMetaRepair.repairSources( scope, edge.getSourceNode(), edge.getType(), edge.getTimestamp() )
                                   .toBlocking().single();
@@ -288,7 +294,7 @@ public class EdgeMetaRepairTest {
 
         //now delete the edge
 
-        storageEdgeSerialization.deleteEdge( scope, edge, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.deleteEdge( scope, edge, UUIDGenerator.newTimeUUID() ));
 
         value = edgeMetaRepair.repairSources( scope, edge.getSourceNode(), edge.getType(), edge.getTimestamp() )
                               .toBlocking().single();
@@ -298,13 +304,13 @@ public class EdgeMetaRepairTest {
         //now verify they're gone
 
         Iterator<String> edgeTypes = edgeMetadataSerialization
-                .getEdgeTypesFromSource( scope, new SimpleSearchEdgeType( edge.getSourceNode(), null, null ) );
+                .getEdgeTypesFromSource( scope, new SimpleSearchEdgeType( edge.getSourceNode(),null,  null ) );
 
         assertFalse( "No edge types exist", edgeTypes.hasNext() );
 
 
         Iterator<String> sourceTypes = edgeMetadataSerialization
-                .getIdTypesFromSource( scope, new SimpleSearchIdType( edge.getSourceNode(), edge.getType(),null, null ) );
+                .getIdTypesFromSource( scope, new SimpleSearchIdType( edge.getSourceNode(), edge.getType(),null,  null ) );
 
         assertFalse( "No edge types exist", sourceTypes.hasNext() );
     }
@@ -318,21 +324,21 @@ public class EdgeMetaRepairTest {
         MarkedEdge edge1 = createEdge( sourceId, "test", createId( "target1" ) );
 
 
-        storageEdgeSerialization.writeEdge( scope, edge1, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edge1, UUIDGenerator.newTimeUUID() ));
 
-        edgeMetadataSerialization.writeEdge( scope, edge1 ).execute();
+        BatchStatementUtils.runBatches( session, edgeMetadataSerialization.writeEdge( scope, edge1 ));
 
         MarkedEdge edge2 = createEdge( sourceId, "test", createId( "target2" ) );
 
-        storageEdgeSerialization.writeEdge( scope, edge2, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edge2, UUIDGenerator.newTimeUUID() ));
 
-        edgeMetadataSerialization.writeEdge( scope, edge2).execute();
+        BatchStatementUtils.runBatches( session, edgeMetadataSerialization.writeEdge( scope, edge2));
 
         MarkedEdge edge3 = createEdge( sourceId, "test", createId( "target3" ) );
 
-        storageEdgeSerialization.writeEdge( scope, edge3, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edge3, UUIDGenerator.newTimeUUID() ));
 
-        edgeMetadataSerialization.writeEdge( scope, edge3 ).execute();
+        BatchStatementUtils.runBatches( session, edgeMetadataSerialization.writeEdge( scope, edge3 ));
 
 
         long cleanupVersion = System.currentTimeMillis();
@@ -344,21 +350,21 @@ public class EdgeMetaRepairTest {
 
         //now delete the edge
 
-        storageEdgeSerialization.deleteEdge( scope, edge1, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.deleteEdge( scope, edge1, UUIDGenerator.newTimeUUID() ));
 
         value = edgeMetaRepair.repairSources( scope, edge1.getSourceNode(), edge1.getType(), cleanupVersion )
                               .toBlocking().single();
 
         assertEquals( "No subtypes removed, edges exist", 2, value );
 
-        storageEdgeSerialization.deleteEdge( scope, edge2, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.deleteEdge( scope, edge2, UUIDGenerator.newTimeUUID() ));
 
         value = edgeMetaRepair.repairSources( scope, edge1.getSourceNode(), edge1.getType(), cleanupVersion )
                               .toBlocking().single();
 
         assertEquals( "No subtypes removed, edges exist", 1, value );
 
-        storageEdgeSerialization.deleteEdge( scope, edge3, UUIDGenerator.newTimeUUID() ).execute();
+        BatchStatementUtils.runBatches( session, storageEdgeSerialization.deleteEdge( scope, edge3, UUIDGenerator.newTimeUUID() ));
 
         value = edgeMetaRepair.repairSources( scope, edge1.getSourceNode(), edge1.getType(), cleanupVersion )
                               .toBlocking().single();
@@ -369,13 +375,13 @@ public class EdgeMetaRepairTest {
         //now verify they're gone
 
         Iterator<String> edgeTypes = edgeMetadataSerialization
-                .getEdgeTypesFromSource( scope, new SimpleSearchEdgeType( edge1.getSourceNode(),null, null ) );
+                .getEdgeTypesFromSource( scope, new SimpleSearchEdgeType( edge1.getSourceNode(), null, null ) );
 
         assertFalse( "No edge types exist", edgeTypes.hasNext() );
 
 
         Iterator<String> sourceTypes = edgeMetadataSerialization
-                .getIdTypesFromSource( scope, new SimpleSearchIdType( edge1.getSourceNode(), edge1.getType(),null, null ) );
+                .getIdTypesFromSource( scope, new SimpleSearchIdType( edge1.getSourceNode(), edge1.getType(), null, null ) );
 
         assertFalse( "No edge types exist", sourceTypes.hasNext() );
     }
@@ -396,9 +402,9 @@ public class EdgeMetaRepairTest {
         for ( int i = 0; i < size; i++ ) {
             MarkedEdge edge = createEdge( sourceId, edgeType, createId( "target" + i ) );
 
-            storageEdgeSerialization.writeEdge( scope, edge, UUIDGenerator.newTimeUUID() ).execute();
+            BatchStatementUtils.runBatches( session, storageEdgeSerialization.writeEdge( scope, edge, UUIDGenerator.newTimeUUID() ));
 
-            edgeMetadataSerialization.writeEdge( scope, edge ).execute();
+            BatchStatementUtils.runBatches( session, edgeMetadataSerialization.writeEdge( scope, edge ));
 
             writtenEdges.add( edge );
         }
@@ -414,7 +420,7 @@ public class EdgeMetaRepairTest {
         //now delete the edge
 
         for ( MarkedEdge created : writtenEdges ) {
-            storageEdgeSerialization.deleteEdge( scope, created, UUIDGenerator.newTimeUUID() ).execute();
+            BatchStatementUtils.runBatches( session, storageEdgeSerialization.deleteEdge( scope, created, UUIDGenerator.newTimeUUID() ));
         }
 
 
@@ -426,13 +432,13 @@ public class EdgeMetaRepairTest {
         //now verify they're gone
 
         Iterator<String> edgeTypes =
-                edgeMetadataSerialization.getEdgeTypesFromSource( scope, new SimpleSearchEdgeType( sourceId,null, null ) );
+                edgeMetadataSerialization.getEdgeTypesFromSource( scope, new SimpleSearchEdgeType( sourceId, null, null ) );
 
         assertFalse( "No edge types exist", edgeTypes.hasNext() );
 
 
         Iterator<String> sourceTypes = edgeMetadataSerialization
-                .getIdTypesFromSource( scope, new SimpleSearchIdType( sourceId, edgeType,null, null ) );
+                .getIdTypesFromSource( scope, new SimpleSearchIdType( sourceId, edgeType,null,  null ) );
 
         assertFalse( "No edge types exist", sourceTypes.hasNext() );
     }

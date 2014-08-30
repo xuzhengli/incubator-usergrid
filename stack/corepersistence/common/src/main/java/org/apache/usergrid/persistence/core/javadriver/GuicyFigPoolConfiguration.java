@@ -21,25 +21,37 @@
 package org.apache.usergrid.persistence.core.javadriver;
 
 
+import java.util.Arrays;
 import java.util.Collection;
+
+import org.apache.usergrid.persistence.core.astyanax.CassandraFig;
+
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
 
 
 /**
  *
  */
-public class ArchaiusHystrixPoolConfiguration implements HystrixPoolConfiguration {
+@Singleton
+public class GuicyFigPoolConfiguration implements HystrixPoolConfiguration {
 
-    //TODO implement this
+    private final CassandraFig cassandraFig;
+
+
+    @Inject
+    public GuicyFigPoolConfiguration( final CassandraFig cassandraFig ) {this.cassandraFig = cassandraFig;}
+
 
     @Override
     public String getServiceName() {
-        return null;
+        return "Usergrid";
     }
 
 
     @Override
     public int getPort() {
-        return 0;
+        return cassandraFig.getNativePort();
     }
 
 
@@ -51,7 +63,12 @@ public class ArchaiusHystrixPoolConfiguration implements HystrixPoolConfiguratio
 
     @Override
     public Collection<String> getSeedNodes() {
-        return null;
+
+        String hosts = cassandraFig.getHosts();
+
+        String[] splitHosts = hosts.split( "," );
+
+        return Arrays.asList( splitHosts );
     }
 
 
@@ -63,7 +80,7 @@ public class ArchaiusHystrixPoolConfiguration implements HystrixPoolConfiguratio
 
     @Override
     public int getMaxConnectionsPerHost() {
-        return 0;
+        return this.cassandraFig.getConnections();
     }
 
 
@@ -75,7 +92,10 @@ public class ArchaiusHystrixPoolConfiguration implements HystrixPoolConfiguratio
 
     @Override
     public int getDefaultConnectionsPerIdentity() {
-        return 0;
+        /**
+         * This is arbitrary and SUPER high.  TODO T.N. Make this come from a
+         */
+        return this.cassandraFig.getConcurrentInvocations();
     }
 
 
