@@ -66,7 +66,7 @@ public class SingleQueueTaskManager implements NotificationsTaskManager {
             if (receipt != null) {
                 LOG.debug("notification {} sent to device {}. saving receipt.", notification.getUuid(), deviceUUID);
                 receipt.setSent(System.currentTimeMillis());
-                this.saveReceipt(notification, deviceRef, receipt);
+//                this.saveReceipt(notification, deviceRef, receipt);
                 LOG.debug("notification {} receipt saved for device {}", notification.getUuid(), deviceUUID);
                 successes.incrementAndGet();
             }
@@ -145,62 +145,62 @@ public class SingleQueueTaskManager implements NotificationsTaskManager {
     }
 
     public void finishedBatch() throws Exception {
-        //synchronized (this) { //avoid issues with counting
-            long successes = this.successes.getAndSet(0); //reset counters
-            long failures = this.failures.getAndSet(0); //reset counters
-            this.hasFinished = true;
+        long successes = this.successes.getAndSet(0); //reset counters
+        long failures = this.failures.getAndSet(0); //reset counters
+        this.hasFinished = true;
 
-            // refresh notification
-            Notification notification = em.get(this.notification.getUuid(), Notification.class);
-            notification.setModified(System.currentTimeMillis());
+        // refresh notification
+        Notification notification = em.get(this.notification.getUuid(), Notification.class);
+        notification.setModified(System.currentTimeMillis());
 
-            Map<String, Object> properties;
-            Map<String, Long> stats;
-            String statsKey = "statistics_batch";
+        long sent = successes;
+        long errors = failures;
+        Map<String, Long> stats;
+        Map<String, Object>  properties = new HashMap<String, Object>(4);
 
-            //write out current results to a set so no overlap in multiple writes will occur
-            if (successes + failures > 0) {
-                properties = new HashMap<String, Object>(4);
-                stats = new HashMap<String, Long>(2);
-                stats.put("sent", successes);
-                stats.put("errors", failures);
-                properties.put(statsKey + "_" + System.currentTimeMillis(), stats);
-                properties.put("modified", notification.getModified());
-                em.updateProperties(notification, properties);
-            }
+//        String statsKey = "statistics_batch";
+//        //write out current results to a set so no overlap in multiple writes will occur
+//        if (successes + failures > 0) {
+//            properties = new HashMap<String, Object>(4);
+//            stats = new HashMap<String, Long>(2);
+//            stats.put("sent", successes);
+//            stats.put("errors", failures);
+//            properties.put(statsKey + "_" + System.currentTimeMillis(), stats);
+//            properties.put("modified", notification.getModified());
+//              em.updateProperties(notification, properties);
+//        }
+//
+//        //resum the stats
+//        properties = em.getProperties(notification); // re-read
+//        sent = 0;
+//        errors = 0;
+//        for (String key : properties.keySet()) {
+//            if (key.contains(statsKey)) {
+//                stats = (Map<String, Long>) properties.get(key);
+//                sent += stats.get("sent");
+//                errors += stats.get("errors");
+//            }
+//        }
 
-            //resum the stats
-            properties = em.getProperties(notification); // re-read
-            long sent = 0;
-            long errors = 0;
-            for (String key : properties.keySet()) {
-                if (key.contains(statsKey)) {
-                    stats = (Map<String, Long>) properties.get(key);
-                    sent += stats.get("sent");
-                    errors += stats.get("errors");
-                }
-            }
+        //and write them out again, this will produce the most accurate count
+        stats = new HashMap<String, Long>(2);
+        stats.put("sent", sent);
+        stats.put("errors", errors);
+        notification.setStatistics(stats);
 
-            //and write them out again, this will produce the most accurate count
-            stats = new HashMap<String, Long>(2);
-            stats.put("sent", sent);
-            stats.put("errors", errors);
-            notification.setStatistics(stats);
+        LOG.info("notification {} sending to {}", notification.getUuid(), sent + errors);
 
-            LOG.info("notification {} sending to {}", notification.getUuid(), sent + errors);
+        //none of this is known and should you ever do this
+        if (notification.getExpectedCount() <= (errors + sent)) {
+            notification.setFinished(notification.getModified());
+            properties.put("finished", notification.getModified());
+            properties.put("state", notification.getState());
+            LOG.info("done sending to devices in {} ms", notification.getFinished() - notification.getStarted());
+        }
 
-            //none of this is known and should you ever do this
-            if (notification.getExpectedCount() <= (errors + sent)) {
-                notification.setFinished(notification.getModified());
-                properties.put("finished", notification.getModified());
-                properties.put("state", notification.getState());
-                LOG.info("done sending to devices in {} ms", notification.getFinished() - notification.getStarted());
-            }
-
-            LOG.info("notification finished batch: {}", notification.getUuid());
-            em.updateProperties(notification, properties);
-            em.update(notification);
-       // }
+        LOG.info("notification finished batch: {}", notification.getUuid());
+        em.updateProperties(notification, properties);
+        em.update(notification);
 
         //Set<Notifier> notifiers = new HashSet<Notifier>(proxy.getNotifierMap().values()); // remove dups
        // proxy.asyncCheckForInactiveDevices(notifiers);
