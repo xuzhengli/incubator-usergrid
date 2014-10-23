@@ -129,6 +129,10 @@
 			<plugin>
 				<groupId>io.gatling</groupId>
 				<artifactId>gatling-maven-plugin</artifactId>
+        <configuration>
+          <simulationsFolder>src/main/scala</simulationsFolder>
+        </configuration>
+
 			</plugin>
 		</plugins>
 	</build>
