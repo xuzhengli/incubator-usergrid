@@ -27,8 +27,7 @@ class PushNotificationTargetUserSimulation extends Simulation {
   val rampTime:Int = Settings.rampTime
   val throttle:Int = Settings.throttle
   val duration:Int = Settings.duration
-  val httpConf = Settings.httpConf
-    .acceptHeader("application/json")
+  val httpConf = Settings.httpConf.acceptHeader("application/json")
 
   val notifier = Settings.pushNotifier
   val createDevice = DeviceScenarios.postDeviceWithNotifier400ok
@@ -40,20 +39,20 @@ class PushNotificationTargetUserSimulation extends Simulation {
   val scnToRun = scenario("Create Push Notification")
     .feed(userFeeder)
     .exec(createUser)
-    .pause(1000)
+//    .pause(1000)
     .exec(http("Check user and user devices")
       .get("/users/${username}/devices")
       .check(status.is(200))
     )
     .feed(deviceNameFeeder)
     .exec(createDevice)
-    .pause(1000)
+//    .pause(1000)
     .exec(http("Check device connections")
       .get("/devices/${entityName}/users")
       .check(status.is(200))
     )
     .exec(http("Connect user with device")
-      .post("/users/${username}/devices/${entityName}")
+      .post("/users/${username}/devices/${deviceId}")
       .check(status.is(200))
     )
     .exec(http("Send Notification to All Devices")

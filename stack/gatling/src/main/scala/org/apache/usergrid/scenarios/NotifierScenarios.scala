@@ -18,48 +18,48 @@
 
 import io.gatling.core.Predef._
 import io.gatling.http.Predef._
+import scala.concurrent.duration._
 
 /**
  *
- * Creates a new device
+ * Creates a new no-op notifier
+ *
  *
  * Expects:
  *
  * authToken The auth token to use when creating the application
  * orgName The name of the org
  * appName The name of the app
- * notifierName The name of the created notifier
  *
  * Produces:
  *
- * deviceName the name of the device created
+ * notifierName The name of the created notifier
  *
  */
-object DeviceScenarios {
+object NotifierScenarios {
+  
+  val notifier = Settings.pushNotifier
+  val provider = Settings.pushProvider
 
   /**
-   * Create a device
+   * Create a notifier
    */
-  val postDeviceWithNotifier = exec(http("Create device with notifier")
-    .post("/devices")
-    .body(StringBody("{\"name\":\"${entityName}\"," +
-      "\"deviceModel\":\"Fake Device\"," +
-      " \"deviceOSVerion\":\"Negative Version\", " +
-      "\"${notifier}.notifier.id\":\"${entityName}\"}"))
-    .check(status.is(200), jsonPath("$.entities[0].uuid").saveAs("deviceId")))
+  val createNotifier = exec(
+      session => {
+        session.set("notifier", notifier)
+        session.set("provider", provider)
+      }
+    )
 
-  val postDeviceWithNotifier400ok = exec(http("Create device with notifier")
-    .post("/devices")
-    .body(StringBody("{\"name\":\"${entityName}\"," +
-    "\"deviceModel\":\"Fake Device\"," +
-    " \"deviceOSVerion\":\"Negative Version\", " +
-    "\"${notifier}.notifier.id\":\"${entityName}\"}"))
-    .check(status.in(200 to 400), jsonPath("$.entities[0].uuid").saveAs("deviceId")))
-
-  /**
-   * TODO: Add a device to a user, which would expect a user in the session
-   */
-
+    .exec(http("Create Notifier")
+    .post("/notifiers")
+    .body(StringBody("{\"name\":\"${notifier}\",\"provider\":\"${provider}\"}"))
+    //remnants of trying to upload an apple certificate
+//    .param("name", "${notifierName}")
+//    .param("provider", "apple")
+//    .param("environment", "mock")
+//    .fileBody("p12Certificate", Map).fileBody(pkcs12Cert)
+    .check(status.is(200)))
 
 
 }

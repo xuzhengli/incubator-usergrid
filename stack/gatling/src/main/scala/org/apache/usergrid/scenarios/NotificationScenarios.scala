@@ -16,8 +16,14 @@
  */
  package org.apache.usergrid
 
+import java.io.File
+import java.nio.file.{Paths, Files}
+
 import io.gatling.core.Predef._
 import io.gatling.http.Predef._
+import scala.concurrent.duration._
+
+import scala.io.Source
 
 /**
  *
@@ -29,36 +35,36 @@ import io.gatling.http.Predef._
  * orgName The name of the org
  * appName The name of the app
  * notifierName The name of the created notifier
+ * deviceName the name of the device created to send the notification to
  *
  * Produces:
  *
- * deviceName the name of the device created
+ * N/A
+ *
  *
  */
-object DeviceScenarios {
+object NotificationScenarios {
+
 
   /**
-   * Create a device
+   * send the notification now
    */
-  val postDeviceWithNotifier = exec(http("Create device with notifier")
-    .post("/devices")
-    .body(StringBody("{\"name\":\"${entityName}\"," +
-      "\"deviceModel\":\"Fake Device\"," +
-      " \"deviceOSVerion\":\"Negative Version\", " +
-      "\"${notifier}.notifier.id\":\"${entityName}\"}"))
-    .check(status.is(200), jsonPath("$.entities[0].uuid").saveAs("deviceId")))
+  val sendNotification = exec(http("Send Single Notification")
+      .post("/devices/${entityName}/notifications")
+      .body(StringBody("{\"payloads\":{\"${notifier}\":\"testmessage\"}}"))
+      .check(status.is(200))
+    )
 
-  val postDeviceWithNotifier400ok = exec(http("Create device with notifier")
-    .post("/devices")
-    .body(StringBody("{\"name\":\"${entityName}\"," +
-    "\"deviceModel\":\"Fake Device\"," +
-    " \"deviceOSVerion\":\"Negative Version\", " +
-    "\"${notifier}.notifier.id\":\"${entityName}\"}"))
-    .check(status.in(200 to 400), jsonPath("$.entities[0].uuid").saveAs("deviceId")))
+  val sendNotificationToUser= exec(http("Send Notification to All Devices")
+    .post("/users/${user}/notifications")
+    .body(StringBody("{\"payloads\":{\"${notifier}\":\"testmessage\"}}"))
+    .check(status.is(200))
+  )
 
   /**
-   * TODO: Add a device to a user, which would expect a user in the session
+   * TODO: Add posting to users, which would expect a user in the session
    */
+
 
 
 
