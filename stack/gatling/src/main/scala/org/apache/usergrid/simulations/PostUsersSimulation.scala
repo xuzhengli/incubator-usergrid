@@ -17,9 +17,11 @@
  package org.apache.usergrid.simulations
 
 import io.gatling.core.Predef._
-import org.apache.usergrid.{UserScenarios, FeederGenerator, Settings}
+ import org.apache.usergrid.datagenerators.FeederGenerator
+ import org.apache.usergrid.scenarios.UserScenarios
+ import org.apache.usergrid.settings.Settings
 
-import scala.concurrent.duration._
+ import scala.concurrent.duration._
 
 class PostUsersSimulation extends Simulation {
 

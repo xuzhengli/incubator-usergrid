@@ -19,6 +19,9 @@
 import io.gatling.core.Predef._
 import io.gatling.http.Predef._
  import org.apache.usergrid._
+ import org.apache.usergrid.datagenerators.FeederGenerator
+ import org.apache.usergrid.scenarios.{NotificationScenarios, UserScenarios, DeviceScenarios}
+ import org.apache.usergrid.settings.Settings
  import scala.concurrent.duration._
 
 class PushNotificationTargetUserSimulation extends Simulation {

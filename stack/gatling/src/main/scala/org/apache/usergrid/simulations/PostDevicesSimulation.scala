@@ -18,7 +18,9 @@
 
 import io.gatling.core.Predef._
 import io.gatling.http.Predef._
- import org.apache.usergrid.{DeviceScenarios, FeederGenerator, Settings}
+ import org.apache.usergrid.datagenerators.FeederGenerator
+ import org.apache.usergrid.scenarios.DeviceScenarios
+ import org.apache.usergrid.settings.Settings
  import scala.concurrent.duration._
 
 class PostDevicesSimulation extends Simulation {

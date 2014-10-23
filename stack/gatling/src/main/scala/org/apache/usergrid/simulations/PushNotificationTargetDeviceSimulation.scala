@@ -19,6 +19,9 @@
 import io.gatling.core.Predef._
 import io.gatling.http.Predef._
  import org.apache.usergrid._
+ import org.apache.usergrid.datagenerators.FeederGenerator
+ import org.apache.usergrid.scenarios.{NotificationScenarios, DeviceScenarios, NotifierScenarios}
+ import org.apache.usergrid.settings.Settings
  import scala.concurrent.duration._
 
 /**

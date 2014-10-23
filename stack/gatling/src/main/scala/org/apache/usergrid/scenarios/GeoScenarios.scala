@@ -14,12 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- package org.apache.usergrid
+ package org.apache.usergrid.scenarios
 
 import io.gatling.core.Predef._
 import io.gatling.http.Predef._
+ import org.apache.usergrid.settings.{Utils, Settings}
 
-object GeoScenarios {
+ object GeoScenarios {
 
   val getGeolocation = exec(
       http("GET geolocated user")

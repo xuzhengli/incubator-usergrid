@@ -18,7 +18,9 @@
 
 import io.gatling.core.Predef._
 import io.gatling.http.Predef._
- import org.apache.usergrid.{UserScenarios, Settings, FeederGenerator}
+ import org.apache.usergrid.datagenerators.FeederGenerator
+ import org.apache.usergrid.scenarios.UserScenarios
+ import org.apache.usergrid.settings.Settings
  import scala.concurrent.duration._
 
 class GetEntitySimulation extends Simulation {
