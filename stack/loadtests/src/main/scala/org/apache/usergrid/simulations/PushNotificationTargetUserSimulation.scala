@@ -34,7 +34,7 @@ class PushNotificationTargetUserSimulation extends Simulation {
   val httpConf = Settings.httpConf.acceptHeader("application/json")
 
   val notifier = Settings.pushNotifier
-  val createDevice = DeviceScenarios.postDeviceWithNotifier400ok
+  val createDevice = DeviceScenarios.maybeCreateDevice
   val sendNotification = NotificationScenarios.sendNotification
   val createUser = UserScenarios.postUser400ok
   val deviceNameFeeder = FeederGenerator.generateEntityNameFeeder("device", numEntities).circular
@@ -44,10 +44,10 @@ class PushNotificationTargetUserSimulation extends Simulation {
     .feed(userFeeder)
     .exec(createUser)
 //    .pause(1000)
-//    .exec(http("Check user and user devices")
-//      .get("/users/${username}/devices")
-//      .check(status.is(200))
-//    )
+    .exec(http("Check user and user devices")
+      .get("/users/${username}/devices")
+      .check(status.is(200))
+    )
     .feed(deviceNameFeeder)
     .exec(createDevice)
 //    .pause(1000)

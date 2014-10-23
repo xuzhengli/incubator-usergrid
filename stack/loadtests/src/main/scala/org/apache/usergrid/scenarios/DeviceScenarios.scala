@@ -45,19 +45,19 @@ object DeviceScenarios {
    */
   val postDeviceWithNotifier = exec(http("Create device with notifier")
     .post("/devices")
-    .body(new StringBody("""{\"name\":\"${entityName}\"," +
-    "\"deviceModel\":\"Fake Device\"," +
-    " \"deviceOSVerion\":\"Negative Version\", " +
-    "\"${notifier}.notifier.id\":\"${entityName}\"}"""))
+    .body(new StringBody("""{"name":"${entityName}","
+    "deviceModel":"Fake Device",
+    "deviceOSVerion":"Negative Version",
+    ""${notifier}.notifier.id":"${entityName}"}"""))
     .check(status.is(200), jsonPath("$.entities[0].uuid").saveAs("deviceId")))
 
 
   val postDeviceWithNotifier400ok = exec(http("Create device with notifier")
     .post("/devices")
-    .body(new StringBody("""{\"name\":\"${entityName}\"," +
-    "\"deviceModel\":\"Fake Device\"," +
-    " \"deviceOSVerion\":\"Negative Version\", " +
-    "\"${notifier}.notifier.id\":\"${entityName}\"}"""))
+    .body(new StringBody("""{"name":"${entityName}",
+    "deviceModel":"Fake Device",
+    "deviceOSVerion":"Negative Version",
+    "${notifier}.notifier.id":"${entityName}"}"""))
     .check(status.in(200 to 400), jsonPath("$.entities[0].uuid").saveAs("deviceId")))
 
 
@@ -72,10 +72,11 @@ object DeviceScenarios {
 
     exec(
 
-      http("Create device and save deviceId").post("/devices").body(new StringBody("""{\"name\":\"${entityName}\"," +
-          "\"deviceModel\":\"Fake Device\"," +
-          " \"deviceOSVerion\":\"Negative Version\", " +
-          "\"${notifier}.notifier.id\":\"${entityName}\"}"""))
+      http("Create device and save deviceId").post("/devices").body(new StringBody(
+        """{"name":"${entityName}",
+          "deviceModel":"Fake Device",
+          "deviceOSVerion":"Negative Version",
+          "${notifier}.notifier.id":"${entityName}"}"""))
           .check(status.is(200), jsonPath("$.entities[0].uuid").saveAs("deviceId"))
     )
   }
