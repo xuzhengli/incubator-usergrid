@@ -569,6 +569,9 @@ public class CpRelationManager implements RelationManager {
             Level resultsLevel,
             boolean reversed ) throws Exception {
 
+
+        throw new RuntimeException( "I shouldn't use a query, I should use a graph!!" );
+
         Query query = Query.fromQL( "select *" );
         query.setLimit( count );
         query.setReversed( reversed );
@@ -1336,7 +1339,11 @@ public class CpRelationManager implements RelationManager {
     public Results getConnectedEntities(
             String connectionType, String connectedEntityType, Level level ) throws Exception {
 
+
+        throw new RuntimeException( "I shouldn't perform a query.  I should use graph" );
+
         Results raw = null;
+
 
         Preconditions.checkNotNull( connectionType, "connectionType cannot be null" );
 
