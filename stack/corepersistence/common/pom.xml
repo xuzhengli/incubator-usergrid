@@ -151,6 +151,15 @@
       <scope>test</scope>
     </dependency>
 
+<!-- Testing dependencies -->
+      <dependency>
+          <groupId>${project.parent.groupId}</groupId>
+          <artifactId>test</artifactId>
+          <version>${project.version}</version>
+        <scope>test</scope>
+        </dependency>
+
+
   </dependencies>
 
 </project>
