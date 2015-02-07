@@ -31,7 +31,7 @@ public class BooleanLiteral extends Literal<Boolean> {
     /**
      * @param t
      */
-    protected BooleanLiteral( Token t ) {
+    public BooleanLiteral( Token t ) {
         super( t );
         value = Boolean.valueOf( t.getText() );
     }
