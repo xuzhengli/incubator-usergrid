@@ -37,6 +37,7 @@ import org.apache.usergrid.management.UserInfo;
 import org.apache.usergrid.management.export.ExportService;
 import org.apache.usergrid.persistence.*;
 import org.apache.usergrid.persistence.entities.FileImport;
+import org.apache.usergrid.persistence.entities.Import;
 import org.apache.usergrid.persistence.index.impl.ElasticSearchResource;
 import org.apache.usergrid.persistence.index.query.Query;
 import org.apache.usergrid.persistence.index.query.Query.Level;
@@ -420,7 +421,7 @@ public class ImportCollectionIT {
         logger.debug("\n\nImport into new app {}\n", em.getApplication().getName() );
 
         ImportService importService = setup.getImportService();
-        UUID importUUID = importService.schedule( new HashMap<String, Object>() {{
+        Import returnedImport = importService.schedule( new HashMap<String, Object>() {{
             put( "path", organization.getName() + em.getApplication().getName());
             put( "organizationId",  organization.getUuid());
             put( "applicationId", em.getApplication().getUuid() );
@@ -441,8 +442,8 @@ public class ImportCollectionIT {
 
         int maxRetries = 120;
         int retries = 0;
-        while ( (!importService.getState( importUUID ).equals( "FINISHED" ) ||
-                 !importService.getState( importUUID ).equals( "FAILED" )) && retries++ < maxRetries ) {
+        while ( (!importService.getState( returnedImport.getUuid() ).equals( "FINISHED" ) ||
+                 !importService.getState( returnedImport.getUuid() ).equals( "FAILED" )) && retries++ < maxRetries ) {
             logger.debug("Waiting for import...");
             Thread.sleep(1000);
         }

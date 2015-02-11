@@ -38,7 +38,7 @@ public interface ImportService {
     /**
      * Schedules the import to execute
      */
-    UUID schedule(Map<String, Object> json) throws Exception;
+    Import schedule( Map<String, Object> json ) throws Exception;
 
     /**
      * Perform the import from the external resource
@@ -67,11 +67,6 @@ public interface ImportService {
     /**
      * @return FileImportEntity
      */
-    FileImport getFileImportEntity(final ImportQueueMessage importQueueMessage) throws Exception;
-
-    /**
-     * @return FileImportEntity
-     */
     FileImport getFileImportEntity(final JobExecution jobExecution) throws Exception;
 
     /**
@@ -79,6 +74,8 @@ public interface ImportService {
      * @return ImportEntity
      */
     Import getImportEntity(final JobExecution jobExecution) throws Exception;
+
+
 
 
 }

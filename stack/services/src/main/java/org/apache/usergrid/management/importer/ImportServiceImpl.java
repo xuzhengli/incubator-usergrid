@@ -29,7 +29,6 @@ import org.apache.usergrid.persistence.entities.Import;
 import org.apache.usergrid.persistence.entities.JobData;
 import org.apache.usergrid.persistence.index.query.Query;
 import org.apache.usergrid.persistence.index.query.Query.Level;
-import org.apache.usergrid.services.queues.ImportQueueMessage;
 import org.apache.usergrid.utils.InflectionUtils;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonParser;
@@ -82,7 +81,7 @@ public class ImportServiceImpl implements ImportService {
      * @return it returns the UUID of the scheduled job
      */
     @Override
-    public UUID schedule(Map<String, Object> config) throws Exception {
+    public Import schedule( Map<String, Object> config ) throws Exception {
 
         if (config == null) {
             logger.error("import information cannot be null");
@@ -125,7 +124,7 @@ public class ImportServiceImpl implements ImportService {
         importUG.setState(Import.State.SCHEDULED);
         rootEm.update(importUG);
 
-        return importUG.getUuid();
+        return importUG;
     }
 
 
@@ -294,18 +293,6 @@ public class ImportServiceImpl implements ImportService {
     }
 
 
-    /**
-     * Returns the File Import Entity that stores all meta-data for the particular sub File import Job
-     * @return File Import Entity
-     */
-    @Override
-    public FileImport getFileImportEntity(final ImportQueueMessage queueMessage) throws Exception {
-
-        EntityManager em = emf.getEntityManager(CpNamingUtils.MANAGEMENT_APPLICATION_ID);
-
-        return em.get(queueMessage.getFileId(), FileImport.class);
-    }
-
 
     /**
      * Returns the File Import Entity that stores all meta-data for the particular sub File import Job
@@ -320,6 +307,7 @@ public class ImportServiceImpl implements ImportService {
 
         return em.get(fileImportId, FileImport.class);
     }
+
 
 
     public SchedulerService getSch() {

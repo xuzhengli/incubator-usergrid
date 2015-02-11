@@ -45,6 +45,7 @@ public class JobServiceBoostrap implements
     @Autowired
     private Properties properties;
 
+
     public JobServiceBoostrap() {
     }
 
