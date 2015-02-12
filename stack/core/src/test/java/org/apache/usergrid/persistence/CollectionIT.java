@@ -29,6 +29,8 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.avro.generic.GenericData;
+
 import org.apache.usergrid.AbstractCoreIT;
 import org.apache.usergrid.Application;
 import org.apache.usergrid.CoreApplication;
@@ -67,7 +69,7 @@ public class
         app.put( "username", "edanuff" );
         app.put( "email", "ed@anuff.com" );
         Entity user = app.create( "user" );
-        assertNotNull( user ); 
+        assertNotNull( user );
 
         user = app.get( user.getUuid(), "user" );
         assertNotNull( user );
@@ -374,7 +376,7 @@ public class
 
         em.refreshIndex();
 
-        Results r = em.searchCollection( group, "users", 
+        Results r = em.searchCollection( group, "users",
             new Query().addEqualityFilter( "nickname", "ed" )
                 .withResultsLevel(Level.LINKED_PROPERTIES ) );
 
@@ -930,7 +932,7 @@ public class
     public void pagingAfterDelete() throws Exception {
         LOG.debug( "pagingAfterDelete" );
 
-        
+
         EntityManager em = app.getEntityManager();
         assertNotNull( em );
 
@@ -1497,7 +1499,7 @@ public class
         em.refreshIndex();
 
         location = new LinkedHashMap<String, Object>();
-        location.put( "Place", 
+        location.put( "Place",
             "Via Pietro Maroncelli, 48, 62012 Santa Maria Apparente Province of Macerata, Italy" );
         location.put( "Longitude", 13.693080199999999 );
         location.put( "Latitude", 43.2985019 );
@@ -1516,7 +1518,7 @@ public class
         em.refreshIndex();
 
         // String s = "select * where Flag = 'requested'";
-        // String s = "select * where Flag = 'requested' and NOT Recipient.Username = 
+        // String s = "select * where Flag = 'requested' and NOT Recipient.Username =
         // 'fb_536692245' order by created asc";
 
         String s = "select * where Flag = 'requested' and NOT Recipient.Username "
@@ -1776,4 +1778,75 @@ public class
 
         em.create( "restaurant", restaurant2.getProperties() );
     }
+
+
+    @Test
+    public void testConnectionWithIndexUpdated() throws Exception {
+        LOG.debug( "testSelectEmailViaConnection" );
+
+        EntityManager em = app.getEntityManager();
+        assertNotNull( em );
+
+        Map<String, Object> properties = new LinkedHashMap<String, Object>();
+        properties.put( "username", "ed@anuff.com" );
+        properties.put( "email", "ed@anuff.com" );
+
+        final Entity userEntity =  em.create( "user", properties );
+
+        int connectionCount = 10;
+        int updateCount = 20;
+
+
+        UUID[] ids = new UUID[connectionCount];
+        UUID[] versions = new UUID[connectionCount];
+
+
+        for ( int i = 0; i < connectionCount; i++ ) {
+
+            final Map<String, Object> thing = new HashMap<>();
+            thing.put( "entityindex", i );
+
+            final Entity entity = em.create( "thing", thing );
+
+            em.createConnection( userEntity, "likes", entity );
+
+            ids[i] = entity.getUuid();
+
+            for ( int j = 0; j < updateCount; j++ ) {
+                entity.setDynamicProperty( "updateNumber", j + 1 );
+                em.update( entity );
+
+                versions[i] =  ( UUID ) entity.getProperty( "version" );
+            }
+        }
+
+
+        final Query query = Query.fromQLNullSafe( null );
+        query.setConnectionType( "likes" );
+        query.setEntityType( "thing" );
+
+
+
+        Results r = em.searchConnectedEntities( userEntity, query );
+        assertEquals("Expected result size", connectionCount, r.size()  );
+
+        // selection results should be a list of lists
+        for(int i = 0; i < connectionCount; i ++){
+            final Entity returned = r.getEntities().get( i );
+            final UUID entityId = returned.getUuid();
+            final UUID version = ( UUID ) returned.getProperty( "version" );
+
+            final UUID expectedId = ids[i];
+            final UUID expectedVersion = ids[i];
+
+
+            assertEquals("Same uuid expected", expectedId, entityId );
+            assertEquals("Same version expected", expectedVersion, version);
+        }
+
+    }
+
 }
+
+
+
