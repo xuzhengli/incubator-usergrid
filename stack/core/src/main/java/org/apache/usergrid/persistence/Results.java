@@ -30,10 +30,8 @@ import java.util.UUID;
 
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.apache.usergrid.persistence.cassandra.QueryProcessor;
 import org.apache.usergrid.persistence.index.query.Query;
 import org.apache.usergrid.persistence.index.query.Query.Level;
-import org.apache.usergrid.persistence.query.ir.SearchVisitor;
 import org.apache.usergrid.utils.MapUtils;
 import org.apache.usergrid.utils.StringUtils;
 
@@ -82,8 +80,6 @@ public class Results implements Iterable<Entity> {
     Object data;
     String dataName;
 
-    private QueryProcessor queryProcessor;
-    private SearchVisitor searchVisitor;
 
 
     public Results() {
@@ -1268,19 +1264,6 @@ public class Results implements Iterable<Entity> {
     }
 
 
-    protected QueryProcessor getQueryProcessor() {
-        return queryProcessor;
-    }
-
-
-    public void setQueryProcessor( QueryProcessor queryProcessor ) {
-        this.queryProcessor = queryProcessor;
-    }
-
-
-    public void setSearchVisitor( SearchVisitor searchVisitor ) {
-        this.searchVisitor = searchVisitor;
-    }
 
 
     /** uses cursor to get next batch of Results (returns null if no cursor) */
@@ -1289,10 +1272,6 @@ public class Results implements Iterable<Entity> {
             return null;
         }
 
-        Query q = new Query( query );
-        q.setCursor( getCursor() );
-        queryProcessor.setQuery( q );
-
-        return queryProcessor.getResults( searchVisitor );
+        throw new UnsupportedOperationException( "This needs to be implemented" );
     }
 }

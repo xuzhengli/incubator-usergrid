@@ -27,9 +27,8 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.usergrid.persistence.index.query.Query;
 import org.apache.usergrid.persistence.Results;
-import org.apache.usergrid.persistence.cassandra.QueryProcessor;
+import org.apache.usergrid.persistence.index.query.Query;
 
 import static org.junit.Assert.assertEquals;
 
@@ -82,7 +81,7 @@ public class NotSubPropertyIT extends AbstractIteratingQueryIT {
         private List<UUID> performSetup( final IoHelper io ) throws Exception {
             io.doSetup();
 
-            int size = ( int ) ( QueryProcessor.PAGE_SIZE*2.5);
+            int size = ( int ) (PAGE_SIZE*2.5);
 
             long start = System.currentTimeMillis();
 

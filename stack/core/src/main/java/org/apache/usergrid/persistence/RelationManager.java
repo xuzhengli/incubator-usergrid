@@ -57,12 +57,11 @@ public interface RelationManager {
     public Entity addToCollections( List<EntityRef> owners, String collectionName ) throws Exception;
 
     public Entity createItemInCollection( String collectionName, String itemType, Map<String, Object> properties )
-            throws Exception;
+        throws Exception;
 
     public void removeFromCollection( String collectionName, EntityRef itemRef ) throws Exception;
 
-    public void copyRelationships( String srcRelationName, EntityRef dstEntityRef, String dstRelationName )
-            throws Exception;
+    public void copyRelationships( String srcRelationName, EntityRef dstEntityRef, String dstRelationName ) throws Exception;
 
     public Results searchCollection( String collectionName, Query query ) throws Exception;
 
@@ -75,16 +74,12 @@ public interface RelationManager {
 
     public ConnectionRef createConnection( ConnectedEntityRef... connections ) throws Exception;
 
-    public ConnectionRef connectionRef( String connectionType, EntityRef connectedEntityRef ) throws Exception;
-
     public ConnectionRef connectionRef( String pairedConnectionType, EntityRef pairedEntity, String connectionType,
                                         EntityRef connectedEntityRef ) throws Exception;
 
     public ConnectionRef connectionRef( ConnectedEntityRef... connections );
 
     public void deleteConnection( ConnectionRef connectionRef ) throws Exception;
-
-    public Set<String> getConnectionTypes( UUID connectedEntityId ) throws Exception;
 
     public Set<String> getConnectionTypes() throws Exception;
 
@@ -96,11 +91,9 @@ public interface RelationManager {
      * @param connectionType The type/name of the connection
      * @param connectedEntityType The type of
      */
-    public Results getConnectedEntities( String connectionType, String connectedEntityType, Level resultsLevel )
-            throws Exception;
+    public Results getConnectedEntities( String connectionType, String connectedEntityType, Level resultsLevel ) throws Exception;
 
-    public Results getConnectingEntities( String connectionType, String connectedEntityType,
-                                          Level resultsLevel ) throws Exception;
+    public Results getConnectingEntities( String connectionType, String connectedEntityType, Level resultsLevel ) throws Exception;
 
     // public Results searchConnectedEntitiesForProperty(String connectionType,
     // String connectedEntityType, String propertyName,
@@ -108,14 +101,10 @@ public interface RelationManager {
     // UUID startResult, int count, boolean reversed, Level resultsLevel)
     // throws Exception;
 
-    public Results getConnectingEntities(
-            String connectionType, String entityType, Level level, int count) throws Exception;
+    public Results getConnectingEntities( String connectionType, String entityType, Level level, int count ) throws Exception;
 
-	public Results searchConnectedEntities( Query query ) throws Exception;
+    public Results searchConnectedEntities( Query query ) throws Exception;
 
 
     public Set<String> getConnectionIndexes( String connectionType ) throws Exception;
-
-    public void batchUpdateSetIndexes( Mutator<ByteBuffer> batch, String setName, Object elementValue,
-                                       boolean removeFromSet, UUID timestampUuid ) throws Exception;
 }

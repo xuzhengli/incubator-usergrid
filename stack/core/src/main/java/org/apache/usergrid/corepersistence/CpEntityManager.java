@@ -56,8 +56,6 @@ import org.apache.usergrid.persistence.RelationManager;
 import org.apache.usergrid.persistence.Results;
 import org.apache.usergrid.persistence.Schema;
 import org.apache.usergrid.persistence.SimpleEntityRef;
-import static org.apache.usergrid.persistence.SimpleEntityRef.getUuid;
-
 import org.apache.usergrid.persistence.SimpleRoleRef;
 import org.apache.usergrid.persistence.TypedEntity;
 import org.apache.usergrid.persistence.cassandra.ApplicationCF;
@@ -65,7 +63,6 @@ import org.apache.usergrid.persistence.cassandra.CassandraPersistenceUtils;
 import org.apache.usergrid.persistence.cassandra.CassandraService;
 import org.apache.usergrid.persistence.cassandra.ConnectionRefImpl;
 import org.apache.usergrid.persistence.cassandra.CounterUtils;
-import org.apache.usergrid.persistence.cassandra.GeoIndexManager;
 import org.apache.usergrid.persistence.cassandra.util.TraceParticipant;
 import org.apache.usergrid.persistence.collection.CollectionScope;
 import org.apache.usergrid.persistence.collection.EntityCollectionManager;
@@ -660,13 +657,6 @@ public class CpEntityManager implements EntityManager {
 
 
     @Override
-    public GeoIndexManager getGeoIndexManager() {
-
-        throw new UnsupportedOperationException( "GeoIndexManager no longer supported." );
-    }
-
-
-    @Override
     public EntityRef getApplicationRef() {
         return new SimpleEntityRef( TYPE_APPLICATION, applicationId );
     }
@@ -685,13 +675,6 @@ public class CpEntityManager implements EntityManager {
     public void updateApplication( Application app ) throws Exception {
         update( app );
         this.application = app;
-    }
-
-
-    @Override
-    public void updateApplication( Map<String, Object> properties ) throws Exception {
-        this.updateProperties( new SimpleEntityRef( Application.ENTITY_TYPE, applicationId ), properties );
-        this.application = get( applicationId, Application.class );
     }
 
 
@@ -878,13 +861,6 @@ public class CpEntityManager implements EntityManager {
 
         Entity entity = get( entityRef );
         return entity.getProperty( propertyName );
-    }
-
-
-    @Override
-    public List<Entity> getPartialEntities(
-            Collection<UUID> ids, Collection<String> properties ) throws Exception {
-        throw new UnsupportedOperationException( "Not supported yet." );
     }
 
 
@@ -1272,11 +1248,6 @@ public class CpEntityManager implements EntityManager {
     }
 
 
-    @Override
-    public Map<String, Map<UUID, Set<String>>> getOwners( EntityRef entityRef ) throws Exception {
-
-        return getRelationManager( entityRef ).getOwners();
-    }
 
 
     @Override
@@ -1802,12 +1773,6 @@ public class CpEntityManager implements EntityManager {
     }
 
 
-    @Override
-    public Map<String, String> getUserGroupRoles( UUID userId, UUID groupId ) throws Exception {
-        // TODO this never returns anything - write path not invoked
-        EntityRef userRef = userRef( userId );
-        return cast( getDictionaryAsMap( userRef, DICTIONARY_ROLENAMES ) );
-    }
 
 
     @Override
@@ -1820,16 +1785,6 @@ public class CpEntityManager implements EntityManager {
         addToCollection( roleRef, COLLECTION_USERS, userRef );
     }
 
-
-    @Override
-    public void removeUserFromGroupRole( UUID userId, UUID groupId, String roleName ) throws Exception {
-        roleName = roleName.toLowerCase();
-        EntityRef memberRef = userRef( userId );
-        EntityRef roleRef = getRoleRef( roleName );
-        removeFromDictionary( memberRef, DICTIONARY_ROLENAMES, roleName );
-        removeFromCollection( memberRef, COLLECTION_ROLES, roleRef );
-        removeFromCollection( roleRef, COLLECTION_USERS, userRef( userId ) );
-    }
 
 
     @Override
@@ -2625,11 +2580,7 @@ public class CpEntityManager implements EntityManager {
         boolean entityHasDictionary = Schema.getDefaultSchema()
                 .hasDictionary( entity.getType(), dictionaryName );
 
-        // Don't index dynamic dictionaries not defined by the schema
-        if ( entityHasDictionary ) {
-            getRelationManager( entity ).batchUpdateSetIndexes(
-                    batch, dictionaryName, elementValue, removeFromDictionary, timestampUuid );
-        }
+
 
         ApplicationCF dictionary_cf = entityHasDictionary
                 ? ENTITY_DICTIONARIES : ENTITY_COMPOSITE_DICTIONARIES;
@@ -2674,12 +2625,6 @@ public class CpEntityManager implements EntityManager {
     }
 
 
-    @Override
-    public Mutator<ByteBuffer> batchUpdateProperties( Mutator<ByteBuffer> batch, EntityRef entity,
-            Map<String, Object> properties, UUID timestampUuid ) throws Exception {
-
-        throw new UnsupportedOperationException( "Not supported yet." );
-    }
 
 
     //TODO: ask what the difference is.
@@ -2707,12 +2652,6 @@ public class CpEntityManager implements EntityManager {
         return dictionaryNames;
     }
 
-
-    @Override
-    public void insertEntity( EntityRef ref ) throws Exception {
-
-        throw new UnsupportedOperationException( "Not supported yet." );
-    }
 
 
     @Override

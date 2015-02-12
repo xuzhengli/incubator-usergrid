@@ -45,6 +45,8 @@ import static org.apache.usergrid.utils.JsonUtils.toJsonNode;
 import static org.apache.usergrid.utils.UUIDUtils.getTimestampInMicros;
 
 
+//"Once queues are removed, remove this"
+@Deprecated()
 public class IndexUpdate {
 
     private static final Logger logger = LoggerFactory.getLogger( IndexUpdate.class );

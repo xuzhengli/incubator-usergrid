@@ -209,7 +209,8 @@
     https://issues.apache.org/jira/browse/USERGRID-224
     <module>launcher</module>
     -->
-    <module>mongo-emulator</module>
+    <!-- rebuild after EM/RM refactor -->
+    <!--<module>mongo-emulator</module>-->
     <!--
     Re-enable when query-validator updated to work with Core Persistence.
     https://issues.apache.org/jira/browse/USERGRID-221

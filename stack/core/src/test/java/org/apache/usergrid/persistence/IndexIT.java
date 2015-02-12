@@ -33,7 +33,6 @@ import org.apache.usergrid.cassandra.Concurrent;
 import org.apache.usergrid.persistence.cassandra.CassandraService;
 import org.apache.usergrid.persistence.cassandra.IndexUpdate;
 import org.apache.usergrid.persistence.cassandra.IndexUpdate.IndexEntry;
-import org.apache.usergrid.persistence.cassandra.RelationManagerImpl;
 import org.apache.usergrid.persistence.index.query.Query;
 import org.apache.usergrid.utils.JsonUtils;
 import org.apache.usergrid.utils.UUIDUtils;
@@ -53,8 +52,8 @@ public class IndexIT extends AbstractCoreIT {
     private static final Logger LOG = LoggerFactory.getLogger( IndexIT.class );
 
     public static final String[] alphabet = {
-        "Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", 
-        "Juliet", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa", "Quebec", "Romeo", "Sierra", 
+        "Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India",
+        "Juliet", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa", "Quebec", "Romeo", "Sierra",
         "Tango", "Uniform", "Victor", "Whiskey", "X-ray", "Yankee", "Zulu"
     };
 
@@ -440,43 +439,5 @@ public class IndexIT extends AbstractCoreIT {
 
 
 
-        //now read the index and see what properties are there
-
-        RelationManager rm = em.getRelationManager( entity2Ref );
-
-        if ( rm instanceof RelationManagerImpl ) { // only relevant for old-school EntityManagers
-
-            RelationManagerImpl impl = (RelationManagerImpl)rm;
-
-            CassandraService cass = cassandraResource.getBean( CassandraService.class );
-
-            ByteBufferSerializer buf = ByteBufferSerializer.get();
-
-            Keyspace ko = cass.getApplicationKeyspace( applicationId );
-            Mutator<ByteBuffer> m = createMutator( ko, buf );
-
-            IndexUpdate update = impl.batchStartIndexUpdate( m, entity1Ref, 
-                    "status", "ignore", UUIDUtils.newTimeUUID(), false, false, true, false );
-
-            int count = 0;
-
-            IndexEntry lastMatch = null;
-
-            for ( IndexEntry entry : update.getPrevEntries() ) {
-                if ( "status".equals( entry.getPath() ) ) {
-                    count++;
-                    lastMatch = entry;
-                }
-            }
-
-            assertEquals( 1, count );
-
-            if ( lastMatch != null ) {
-                assertEquals( "herring", lastMatch.getValue() );
-            }
-            else {
-                fail( "The last match was null but should have been herring!" );
-            }
-        }
     }
 }

@@ -32,10 +32,6 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.usergrid.locking.LockManager;
-import org.apache.usergrid.persistence.IndexBucketLocator;
-import org.apache.usergrid.persistence.IndexBucketLocator.IndexType;
-import org.apache.usergrid.persistence.cassandra.index.IndexBucketScanner;
-import org.apache.usergrid.persistence.cassandra.index.IndexScanner;
 import org.apache.usergrid.persistence.hector.CountingMutator;
 import org.apache.usergrid.utils.MapUtils;
 
@@ -1002,48 +998,10 @@ public class CassandraService {
 
 
 
-    /**
-     * Gets the id list.
-     *
-     * @param ko the keyspace
-     * @param key the key
-     * @param start the start
-     * @param finish the finish
-     * @param count the count
-     * @param reversed True if the scan should be reversed
-     * @param locator The index locator instance
-     * @param applicationId The applicationId
-     * @param collectionName The name of the collection to get the Ids for
-     *
-     * @return list of columns as UUIDs
-     *
-     * @throws Exception the exception
-     */
-    public IndexScanner getIdList( Keyspace ko, Object key, UUID start, UUID finish, int count, boolean reversed,
-                                   IndexBucketLocator locator, UUID applicationId, String collectionName, boolean keepFirst )
-            throws Exception {
-
-        if ( count <= 0 ) {
-            count = DEFAULT_COUNT;
-        }
-
-        if ( NULL_ID.equals( start ) ) {
-            start = null;
-        }
-
-
-        final boolean skipFirst = start != null && !keepFirst;
-
-        IndexScanner scanner =
-                new IndexBucketScanner( this, locator, ENTITY_ID_SETS, applicationId, IndexType.COLLECTION, key, start,
-                        finish, reversed, count, skipFirst, collectionName );
-
-        return scanner;
-    }
 
 
 
-    
+
     public void destroy() throws Exception {
     	if (cluster != null) {
     		HConnectionManager connectionManager = cluster.getConnectionManager();

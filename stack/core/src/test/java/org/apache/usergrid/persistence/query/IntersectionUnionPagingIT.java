@@ -26,10 +26,10 @@ import java.util.Set;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.apache.usergrid.persistence.Entity;
-import org.apache.usergrid.persistence.index.query.Query;
 import org.apache.usergrid.persistence.Results;
-import org.apache.usergrid.persistence.cassandra.QueryProcessor;
+import org.apache.usergrid.persistence.index.query.Query;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -80,7 +80,7 @@ public class IntersectionUnionPagingIT extends AbstractIteratingQueryIT {
     private Set<String> performSetup( final IoHelper io ) throws Exception {
         io.doSetup();
 
-        int size = ( int ) ( QueryProcessor.PAGE_SIZE*2.5);
+        int size = ( int ) ( PAGE_SIZE*2.5);
 
         long start = System.currentTimeMillis();
 
@@ -130,12 +130,12 @@ public class IntersectionUnionPagingIT extends AbstractIteratingQueryIT {
     }
 
 
-    private void testUnionPaging( final IoHelper io, final String queryString, 
+    private void testUnionPaging( final IoHelper io, final String queryString,
             final Set<String> expectedResults ) throws Exception {
 
         Set<String> newSets = new HashSet<String>( expectedResults );
 
-        //our field1Or has a result size < our page size, so it shouldn't blow up when the 
+        //our field1Or has a result size < our page size, so it shouldn't blow up when the
         // cursor is getting created the leaf iterator should insert it's own "no value left" i
         // not the cursor
         Query query = Query.fromQL( queryString );
