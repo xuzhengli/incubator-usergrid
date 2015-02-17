@@ -449,6 +449,21 @@ public class ImportCollectionIT {
 
         assertEquals( "There four file imports", 4, results.size() );
 
+        int successCount = 0;
+        int failCount = 0;
+
+        for ( Entity e : results.getEntities() ) {
+            FileImport fileImport = (FileImport)e;
+            if ( fileImport.getState().equals( FileImport.State.FINISHED )) {
+                successCount++;
+            } else {
+                failCount++;
+                assertTrue( fileImport.getErrorMessage().startsWith("Unexpected character"));
+            }
+        }
+
+        assertEquals( 3, successCount );
+        assertEquals( 1, failCount );
     }
 
 
