@@ -43,7 +43,7 @@ class PostCustomEntitySimulation extends Simulation {
   if(!Settings.skipSetup) {
     println("Begin setup")
     println("These aren't the droids you are looking for...")
-    exec(TokenScenarios.getManagementToken)
+    //exec(TokenScenarios.getManagementToken)
     println("End Setup")
   }else{
     println("Skipping Setup")
@@ -56,7 +56,6 @@ class PostCustomEntitySimulation extends Simulation {
   val throttle:Int = Settings.throttle
   val feeder = FeederGenerator.generateCustomEntityInfinite(0)
   val httpConf = Settings.httpConf
- // exec(TokenScenarios.getManagementToken)
 
   val scnToRun = scenario("POST custom entities")
     .feed(feeder)
