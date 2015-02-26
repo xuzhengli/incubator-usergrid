@@ -17,29 +17,15 @@
 
 package org.apache.usergrid.management.importer;
 
-import com.amazonaws.SDKGlobalConfiguration;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.util.concurrent.Service;
-import com.google.inject.Module;
-import org.apache.commons.lang.RandomStringUtils;
-import org.apache.commons.lang3.StringUtils;
 
-import org.apache.usergrid.NewOrgAppAdminRule;
-import org.apache.usergrid.ServiceITSetup;
-import org.apache.usergrid.ServiceITSetupImpl;
-import org.apache.usergrid.batch.service.JobSchedulerService;
-import org.apache.usergrid.cassandra.CassandraResource;
-import org.apache.usergrid.cassandra.ClearShiroSubject;
-import org.apache.usergrid.cassandra.Concurrent;
-import org.apache.usergrid.management.OrganizationInfo;
-import org.apache.usergrid.management.UserInfo;
-import org.apache.usergrid.management.export.ExportService;
-import org.apache.usergrid.persistence.*;
-import org.apache.usergrid.persistence.entities.FileImport;
-import org.apache.usergrid.persistence.entities.Import;
-import org.apache.usergrid.persistence.index.impl.ElasticSearchResource;
-import org.apache.usergrid.persistence.index.query.Query;
-import org.apache.usergrid.persistence.index.query.Query.Level;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
+
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
@@ -49,23 +35,54 @@ import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.http.config.JavaUrlHttpCommandExecutorServiceModule;
 import org.jclouds.logging.log4j.config.Log4JLoggingModule;
 import org.jclouds.netty.config.NettyPayloadModule;
-import org.junit.*;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
+
+import org.apache.usergrid.NewOrgAppAdminRule;
+import org.apache.usergrid.ServiceITSetup;
+import org.apache.usergrid.ServiceITSetupImpl;
+import org.apache.usergrid.batch.service.JobSchedulerService;
+import org.apache.usergrid.cassandra.ClearShiroSubject;
+import org.apache.usergrid.management.OrganizationInfo;
+import org.apache.usergrid.management.UserInfo;
+import org.apache.usergrid.management.export.ExportService;
+import org.apache.usergrid.persistence.ConnectionRef;
+import org.apache.usergrid.persistence.Entity;
+import org.apache.usergrid.persistence.EntityManager;
+import org.apache.usergrid.persistence.EntityRef;
+import org.apache.usergrid.persistence.Results;
+import org.apache.usergrid.persistence.SimpleEntityRef;
+import org.apache.usergrid.persistence.entities.FileImport;
+import org.apache.usergrid.persistence.entities.Import;
+import org.apache.usergrid.persistence.index.query.Query;
+import org.apache.usergrid.persistence.index.query.Query.Level;
+import org.apache.usergrid.setup.ConcurrentProcessSingleton;
+
+import com.amazonaws.SDKGlobalConfiguration;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.util.concurrent.Service;
+import com.google.inject.Module;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 
-@Concurrent
 public class ImportCollectionIT {
 
     private static final Logger logger = LoggerFactory.getLogger(ImportCollectionIT.class);
-
-    private static CassandraResource cassandraResource = CassandraResource.newWithAvailablePorts();
 
     // app-level data generated only once
     private static UserInfo adminUser;
@@ -81,8 +98,7 @@ public class ImportCollectionIT {
     public ClearShiroSubject clearShiroSubject = new ClearShiroSubject();
 
     @ClassRule
-    public static final ServiceITSetup setup =
-        new ServiceITSetupImpl( cassandraResource, new ElasticSearchResource() );
+    public static final ServiceITSetup setup = new ServiceITSetupImpl(  );
 
     @Rule
     public NewOrgAppAdminRule newOrgAppAdminRule = new NewOrgAppAdminRule( setup );
@@ -94,11 +110,13 @@ public class ImportCollectionIT {
         bucketPrefix = System.getProperty( "bucketName" );
 
         // start the scheduler after we're all set up
-        JobSchedulerService jobScheduler = cassandraResource.getBean( JobSchedulerService.class );
-        if ( jobScheduler.state() != Service.State.RUNNING ) {
-            jobScheduler.startAndWait();
-        }
+        JobSchedulerService jobScheduler = ConcurrentProcessSingleton.getInstance()
+            .getSpringResource().getBean( JobSchedulerService.class );
 
+        if ( jobScheduler.state() != Service.State.RUNNING ) {
+            jobScheduler.startAsync();
+            jobScheduler.awaitRunning();
+        }
     }
 
 
@@ -154,7 +172,10 @@ public class ImportCollectionIT {
         // create a collection of "thing" entities in the first application, export to S3
         try {
 
-            final EntityManager emApp1 = setup.getEmf().getEntityManager( applicationId );
+            final UUID targetAppId = setup.getMgmtSvc().createApplication(
+                organization.getUuid(), "target" + RandomStringUtils.randomAlphanumeric(10)).getId();
+
+            final EntityManager emApp1 = setup.getEmf().getEntityManager( targetAppId );
             Map<UUID, Entity> thingsMap = new HashMap<>();
             List<Entity> things = new ArrayList<>();
             createTestEntities(emApp1, thingsMap, things, "thing");
@@ -165,11 +186,10 @@ public class ImportCollectionIT {
             // create new second application, import the data from S3
 
             final UUID appId2 = setup.getMgmtSvc().createApplication(
-                organization.getUuid(), "second").getId();
+                organization.getUuid(), "second" + RandomStringUtils.randomAlphanumeric(10)).getId();
 
             final EntityManager emApp2 = setup.getEmf().getEntityManager(appId2);
             importCollections(emApp2);
-
 
             // make sure that it worked
 
@@ -241,7 +261,10 @@ public class ImportCollectionIT {
 
         // create collection of things in first application, export them to S3
 
-        final EntityManager emApp1 = setup.getEmf().getEntityManager( applicationId );
+        final UUID targetAppId = setup.getMgmtSvc().createApplication(
+            organization.getUuid(), "target" + RandomStringUtils.randomAlphanumeric(10)).getId();
+
+        final EntityManager emApp1 = setup.getEmf().getEntityManager( targetAppId );
 
         Map<UUID, Entity> thingsMap = new HashMap<>();
         List<Entity> things = new ArrayList<>();
@@ -255,7 +278,7 @@ public class ImportCollectionIT {
             // create new second application and import those things from S3
 
             final UUID appId2 = setup.getMgmtSvc().createApplication(
-                organization.getUuid(), "second").getId();
+                organization.getUuid(), "second" + RandomStringUtils.randomAlphanumeric(10)).getId();
 
             final EntityManager emApp2 = setup.getEmf().getEntityManager(appId2);
             importCollections(emApp2);
@@ -298,6 +321,9 @@ public class ImportCollectionIT {
 
         try {
 
+            String targetAppName = "import-test-target-" + RandomStringUtils.randomAlphanumeric(10);
+            UUID targetAppId = setup.getMgmtSvc().createApplication(organization.getUuid(), targetAppName).getId();
+
             // create 4 applications each with collection of 10 things, export all to S3
             logger.debug("\n\nCreating 10 applications with 10 entities each\n");
 
@@ -317,7 +343,7 @@ public class ImportCollectionIT {
             // import all those exports from S3 into the default test application
             logger.debug("\n\nImporting\n");
 
-            final EntityManager emDefaultApp = setup.getEmf().getEntityManager(applicationId);
+            final EntityManager emDefaultApp = setup.getEmf().getEntityManager(targetAppId);
             importCollections(emDefaultApp);
 
             // we should now have 100 Entities in the default app
@@ -349,8 +375,12 @@ public class ImportCollectionIT {
 
         // export and upload a bad JSON file to the S3 bucket
 
+        File cwd = new File(".");
+        String basePath = System.getProperty("target.directory")
+            + File.separator + "test-classes" + File.separator;
+
         List<String> filenames = new ArrayList<>( 1 );
-        filenames.add( "testimport-bad-json.json");
+        filenames.add( basePath + "testimport-bad-json.json");
 
         S3Upload s3Upload = new S3Upload();
         s3Upload.copyToS3(
@@ -360,19 +390,22 @@ public class ImportCollectionIT {
 
         // import bad JSON from from the S3 bucket
 
-        final EntityManager emDefaultApp = setup.getEmf().getEntityManager( applicationId );
-        UUID importId = importCollections(emDefaultApp);
+        String appName = "import-test-" + RandomStringUtils.randomAlphanumeric(10);
+        UUID appId = setup.getMgmtSvc().createApplication(organization.getUuid(), appName).getId();
+
+        final EntityManager em = setup.getEmf().getEntityManager( appId );
+        UUID importId = importCollections(em);
 
 
         // check that we got an informative error message back
 
-        List<Entity> importedThings = emDefaultApp.getCollection(
-            emDefaultApp.getApplicationId(), "things", null, Level.ALL_PROPERTIES).getEntities();
+        List<Entity> importedThings = em.getCollection(
+            em.getApplicationId(), "things", null, Level.ALL_PROPERTIES).getEntities();
 
         assertTrue("No entities should have been imported", importedThings.isEmpty());
 
         ImportService importService = setup.getImportService();
-        Results results = importService.getFileImports( applicationId, importId, null, null );
+        Results results = importService.getFileImports( appId, importId, null, null );
 
         assertEquals( "There is one", 1, results.size() );
 
@@ -381,8 +414,7 @@ public class ImportCollectionIT {
 
         FileImport fileImport = (FileImport)results.getEntity();
 
-        assertEquals( "File name is correct",
-            "testimport-bad-json.json", fileImport.getFileName());
+        assertTrue( fileImport.getFileName().endsWith("testimport-bad-json.json"));
 
         assertTrue( "Error message is correct",
             fileImport.getErrorMessage().startsWith("Unexpected character ('<' (code 60))"));
@@ -395,11 +427,14 @@ public class ImportCollectionIT {
 
         // upload good and badly formatted files to our S3 bucket
 
+        String basePath = System.getProperty("target.directory")
+            + File.separator + "test-classes" + File.separator;
+
         List<String> filenames = new ArrayList<>( 3 );
-        filenames.add( "testimport-with-connections.json" );
-        filenames.add( "testimport-qtmagics.json" );
-        filenames.add( "testimport-bad-connection.json" );
-        filenames.add( "testimport-bad-json.json" );
+        filenames.add( basePath + "testimport-with-connections.json" );
+        filenames.add( basePath + "testimport-qtmagics.json" );
+        filenames.add( basePath + "testimport-bad-connection.json" );
+        filenames.add( basePath + "testimport-bad-json.json" );
 
         S3Upload s3Upload = new S3Upload();
         s3Upload.copyToS3(
@@ -409,15 +444,16 @@ public class ImportCollectionIT {
 
         // import all those files into the default test application
 
-        final EntityManager emDefaultApp = setup.getEmf().getEntityManager( applicationId );
+        String targetAppName = "import-test-target-" + RandomStringUtils.randomAlphanumeric(10);
+        UUID targetAppId = setup.getMgmtSvc().createApplication(organization.getUuid(), targetAppName).getId();
+
+        final EntityManager emDefaultApp = setup.getEmf().getEntityManager( targetAppId );
         UUID importId = importCollections(emDefaultApp);
 
         {
             List<Entity> importedThings = emDefaultApp.getCollection(
                 emDefaultApp.getApplicationId(), "connfails", null, Level.ALL_PROPERTIES).getEntities();
             assertTrue( !importedThings.isEmpty());
-
-            //
             assertEquals( 1, importedThings.size() );
         }
 
@@ -445,7 +481,7 @@ public class ImportCollectionIT {
         Thread.sleep(3000);
 
         ImportService importService = setup.getImportService();
-        Results results = importService.getFileImports( applicationId, importId, null, null );
+        Results results = importService.getFileImports( targetAppId, importId, null, null );
 
         assertEquals( "There four file imports", 4, results.size() );
 
@@ -477,9 +513,10 @@ public class ImportCollectionIT {
 
         logger.debug("\n\nImport into new app {}\n", em.getApplication().getName() );
 
-        ImportService importService = setup.getImportService();
+        final ImportService importService = setup.getImportService();
 
-        Import importEntity = importService.schedule(em.getApplication().getUuid(),  new HashMap<String, Object>() {{
+        final Import importEntity = importService.schedule(em.getApplication().getUuid(),
+            new HashMap<String, Object>() {{
             put( "path", organization.getName() + em.getApplication().getName() );
             put( "organizationId", organization.getUuid() );
             put( "applicationId", em.getApplication().getUuid() );
@@ -493,7 +530,7 @@ public class ImportCollectionIT {
                     put( "bucket_location", bucketName );
                 }} );
             }} );
-        }} );
+        }});
 
         int maxRetries = 30;
         int retries = 0;

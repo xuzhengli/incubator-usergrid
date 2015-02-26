@@ -2916,6 +2916,12 @@ public class EntityManagerImpl implements EntityManager {
 
 
     @Override
+    public void deleteIndex() {
+        //no op
+    }
+
+
+    @Override
     public EntityRef getGroupRoleRef( UUID ownerId, String roleName) throws Exception {
         return new SimpleEntityRef( Role.ENTITY_TYPE, SimpleRoleRef.getIdForGroupIdAndRoleName( ownerId, roleName ));
     }
@@ -2923,6 +2929,13 @@ public class EntityManagerImpl implements EntityManager {
     @Override
     public void flushManagerCaches() {
         // no-op
+    }
+
+    @Override
+    public void reindexCollection(
+        EntityManagerFactory.ProgressObserver po, String collectionName, boolean reverse) throws Exception {
+
+        throw new UnsupportedOperationException("Not supported.");
     }
 
     @Override

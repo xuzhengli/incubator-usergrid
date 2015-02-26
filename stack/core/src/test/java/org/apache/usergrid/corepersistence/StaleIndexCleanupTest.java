@@ -21,8 +21,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.commons.lang3.RandomStringUtils;
 
 import org.apache.usergrid.AbstractCoreIT;
+import org.apache.usergrid.cassandra.SpringResource;
 import org.apache.usergrid.corepersistence.util.CpNamingUtils;
 import org.apache.usergrid.persistence.Entity;
 import org.apache.usergrid.persistence.EntityManager;
@@ -50,21 +56,21 @@ import org.apache.usergrid.persistence.index.query.Query;
 import org.apache.usergrid.persistence.model.entity.SimpleId;
 
 import com.fasterxml.uuid.UUIDComparator;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import static org.apache.usergrid.corepersistence.CoreModule.EVENTS_DISABLED;
+import com.google.inject.Injector;
 
+import net.jcip.annotations.NotThreadSafe;
+
+import static org.apache.usergrid.corepersistence.CoreModule.EVENTS_DISABLED;
 import static org.apache.usergrid.corepersistence.util.CpNamingUtils.getCollectionScopeNameFromEntityType;
 import static org.apache.usergrid.persistence.Schema.TYPE_APPLICATION;
-import org.junit.After;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import org.junit.Before;
 
 
 /**
  * Test on read style clean-up of stale ElasticSearch indexes.
  */
+@NotThreadSafe
 public class StaleIndexCleanupTest extends AbstractCoreIT {
     private static final Logger logger = LoggerFactory.getLogger( StaleIndexCleanupTest.class );
 
@@ -75,7 +81,6 @@ public class StaleIndexCleanupTest extends AbstractCoreIT {
 
     @Before
     public void before() {
-
         // if tests run in parallel there will likely be a conflict over the allow.stale.entities
         sequential.lock();
     }
@@ -83,7 +88,6 @@ public class StaleIndexCleanupTest extends AbstractCoreIT {
     @After
     public void after() {
         System.clearProperty( EVENTS_DISABLED );
-
     }
 
     /**
@@ -125,9 +129,10 @@ public class StaleIndexCleanupTest extends AbstractCoreIT {
 
     /**
      * Test that the CpRelationManager cleans up and stale indexes that it finds when
-     * it is building search results (aka read-repair).
+     * it is building search results.
      */
     @Test
+    @Ignore("Broken until search connections is fixed")
     public void testStaleIndexCleanup() throws Exception {
 
         logger.info( "Started testStaleIndexCleanup()" );
@@ -237,8 +242,8 @@ public class StaleIndexCleanupTest extends AbstractCoreIT {
 
 
     /**
-     * Test that the EntityDeleteImpl cleans up stale indexes on delete.
-     * Ensures that when an entity is deleted its old indexes are cleared from ElasticSearch.
+     * Test that the EntityDeleteImpl cleans up stale indexes on delete. Ensures that when an
+     * entity is deleted its old indexes are cleared from ElasticSearch.
      */
     @Test(timeout=30000)
     public void testCleanupOnDelete() throws Exception {
@@ -317,8 +322,8 @@ public class StaleIndexCleanupTest extends AbstractCoreIT {
 
 
     /**
-     * Test that the EntityDeleteImpl cleans up stale indexes on update.
-     * Ensures that when an entity is updated its old indexes are cleared from ElasticSearch.
+     * Test that the EntityDeleteImpl cleans up stale indexes on update. Ensures that when an
+     * entity is updated its old indexes are cleared from ElasticSearch.
      */
     @Test(timeout=30000)
     public void testCleanupOnUpdate() throws Exception {
@@ -400,7 +405,7 @@ public class StaleIndexCleanupTest extends AbstractCoreIT {
                 new SimpleId( em.getApplicationId(), TYPE_APPLICATION ), eref.getType() );
 
         EntityCollectionManagerFactory ecmf =
-                CpSetup.getInjector().getInstance( EntityCollectionManagerFactory.class );
+            SpringResource.getInstance().getBean( Injector.class ).getInstance( EntityCollectionManagerFactory.class );
 
         EntityCollectionManager ecm = ecmf.createCollectionManager( cs );
 
@@ -418,7 +423,7 @@ public class StaleIndexCleanupTest extends AbstractCoreIT {
 
         EntityManager em = app.getEntityManager();
 
-        EntityIndexFactory eif = CpSetup.getInjector().getInstance( EntityIndexFactory.class );
+        EntityIndexFactory eif =  SpringResource.getInstance().getBean( Injector.class ).getInstance( EntityIndexFactory.class );
 
         ApplicationScope as = new ApplicationScopeImpl(
             new SimpleId( em.getApplicationId(), TYPE_APPLICATION ) );

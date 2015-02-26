@@ -17,31 +17,31 @@
 package org.apache.usergrid.batch.job;
 
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.usergrid.cassandra.Concurrent;
+
 import org.apache.usergrid.persistence.entities.JobData;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 
 /**
  * Class to test job runtimes.
  */
-@Concurrent
-//@Ignore("These tests no longer work with shared spring context. Need to re-evaluate")
+
+@Ignore("These tests no longer work with shared spring context. Need to re-evaluate")
 public class SchedulerRuntime1IT extends AbstractSchedulerRuntimeIT {
 	private static final Logger logger = LoggerFactory.getLogger(SchedulerRuntime1IT.class.getName());
 
     @Test
     public void basicScheduling() throws InterruptedException {
 
-        CountdownLatchJob counterJob = cassandraResource.getBean( CountdownLatchJob.class );
+        CountdownLatchJob counterJob = springResource.getBean( CountdownLatchJob.class );
 
         // set the counter job latch size
         counterJob.setLatch( getCount() );

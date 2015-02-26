@@ -16,6 +16,7 @@
 package org.apache.usergrid.corepersistence;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Provider;
 import com.google.inject.multibindings.Multibinder;
 
 import org.apache.usergrid.corepersistence.migration.EntityDataMigration;
@@ -37,31 +38,35 @@ import org.apache.usergrid.persistence.map.guice.MapModule;
 import org.apache.usergrid.persistence.queue.guice.QueueModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationContext;
 
 
 /**
  * Guice Module that encapsulates Core Persistence.
  */
-public class CoreModule extends AbstractModule {
+public class CoreModule  extends AbstractModule {
 
-    private static final Logger logger = LoggerFactory.getLogger(CoreModule.class);
-
-    private EntityManagerFactory emf;
+    /**
+     * TODO this is a circular dependency, and should be refactored
+     */
+    private LazyEntityManagerFactoryProvider lazyEntityManagerFactoryProvider;
 
     public static final String EVENTS_DISABLED = "corepersistence.events.disabled";
 
-    public CoreModule( EntityManagerFactory emf ) {
-        this.emf = emf;
+
+
+    public CoreModule( final ApplicationContext context ) {
+        this.lazyEntityManagerFactoryProvider = new LazyEntityManagerFactoryProvider( context );
     }
 
     @Override
     protected void configure() {
 
-        if ( emf != null ) {
-            bind( EntityManagerFactory.class ).toInstance( emf );
-        }
 
-        install(new CommonModule());
+        //See TODO, this is fugly
+        bind(EntityManagerFactory.class).toProvider( lazyEntityManagerFactoryProvider );
+
+        install( new CommonModule());
         install(new CollectionModule());
         install(new GraphModule());
         install(new IndexModule());
@@ -89,6 +94,27 @@ public class CoreModule extends AbstractModule {
         versionCreatedMultibinder.addBinding().to(EntityVersionCreatedHandler.class);
 
 
+    }
+
+
+    /**
+     * TODO, this is a hack workaround due to the guice/spring EMF circular dependency
+     * Once the entity managers have been refactored and moved into guice, remove this dependency.
+     *
+     */
+    public static class LazyEntityManagerFactoryProvider implements Provider<EntityManagerFactory>{
+
+        private final ApplicationContext context;
+
+
+        public LazyEntityManagerFactoryProvider( final ApplicationContext context ) {this.context = context;}
+
+
+
+        @Override
+        public EntityManagerFactory get() {
+            return this.context.getBean( EntityManagerFactory.class );
+        }
     }
 
 }

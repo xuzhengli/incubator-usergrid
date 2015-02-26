@@ -29,7 +29,7 @@ import java.util.UUID;
 
 import javax.ws.rs.core.MediaType;
 
-import org.apache.usergrid.cassandra.Concurrent;
+
 import org.apache.usergrid.rest.AbstractRestIT;
 import org.apache.usergrid.rest.TestContextSetup;
 
@@ -42,7 +42,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 
-@Concurrent
 public class ExportResourceIT extends AbstractRestIT {
 
     @Rule

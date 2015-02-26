@@ -17,13 +17,20 @@
 package org.apache.usergrid;
 
 
-import org.apache.usergrid.cassandra.CassandraResource;
+import java.util.Properties;
+
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.shiro.SecurityUtils;
+
 import org.apache.usergrid.management.ApplicationCreator;
 import org.apache.usergrid.management.ManagementService;
 import org.apache.usergrid.management.export.ExportService;
 import org.apache.usergrid.management.importer.ImportService;
 import org.apache.usergrid.persistence.cassandra.CassandraService;
-import org.apache.usergrid.persistence.index.impl.ElasticSearchResource;
 import org.apache.usergrid.security.providers.SignInProviderFactory;
 import org.apache.usergrid.security.tokens.TokenService;
 import org.apache.usergrid.services.ServiceManagerFactory;
@@ -50,8 +57,19 @@ public class ServiceITSetupImpl extends CoreITSetupImpl implements ServiceITSetu
     private ImportService importService;
 
 
-    public ServiceITSetupImpl( CassandraResource cassandraResource, ElasticSearchResource elasticSearchResource ) {
-        super( cassandraResource, elasticSearchResource );
+    public ServiceITSetupImpl() {
+        super();
+        managementService = springResource.getBean( ManagementService.class );
+        applicationCreator = springResource.getBean( ApplicationCreator.class );
+        tokenService = springResource.getBean( TokenService.class );
+        providerFactory = springResource.getBean( SignInProviderFactory.class );
+        properties = springResource.getBean( "properties", Properties.class );
+        smf = springResource.getBean( ServiceManagerFactory.class );
+        exportService = springResource.getBean( ExportService.class );
+        importService = springResource.getBean( ImportService.class );
+
+        //set our security manager for shiro
+        SecurityUtils.setSecurityManager(springResource.getBean( org.apache.shiro.mgt.SecurityManager.class ));
     }
 
 
@@ -62,17 +80,7 @@ public class ServiceITSetupImpl extends CoreITSetupImpl implements ServiceITSetu
 
 
     protected void before( Description description ) throws Throwable {
-        super.before( description );
-        managementService = cassandraResource.getBean( ManagementService.class );
-        applicationCreator = cassandraResource.getBean( ApplicationCreator.class );
-        tokenService = cassandraResource.getBean( TokenService.class );
-        providerFactory = cassandraResource.getBean( SignInProviderFactory.class );
-        properties = cassandraResource.getBean( PropertiesFactoryBean.class ).getObject();
-        smf = cassandraResource.getBean( ServiceManagerFactory.class );
-        exportService = cassandraResource.getBean( ExportService.class );
-        importService = cassandraResource.getBean( ImportService.class );
 
-        LOG.info( "Test setup complete..." );
     }
 
 
@@ -96,7 +104,7 @@ public class ServiceITSetupImpl extends CoreITSetupImpl implements ServiceITSetu
 
     @Override
     public CassandraService getCassSvc() {
-        return cassandraResource.getBean( CassandraService.class );
+        return  springResource.getBean( CassandraService.class );
     }
 
 
@@ -114,7 +122,7 @@ public class ServiceITSetupImpl extends CoreITSetupImpl implements ServiceITSetu
 
     public ServiceManagerFactory getSmf() {
         if ( smf == null ) {
-            smf = cassandraResource.getBean( ServiceManagerFactory.class );
+            smf =  springResource.getBean( ServiceManagerFactory.class );
         }
 
         return smf;

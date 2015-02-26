@@ -38,6 +38,8 @@ import org.apache.usergrid.rest.test.resource2point0.model.Collection;
 import org.apache.usergrid.rest.test.resource2point0.model.Entity;
 import org.apache.usergrid.rest.test.resource2point0.model.Organization;
 import org.apache.usergrid.rest.test.resource2point0.model.Token;
+import org.apache.usergrid.setup.ConcurrentProcessSingleton;
+
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
@@ -75,12 +77,10 @@ public class ImportResourceIT extends AbstractRestIT {
 
     }
 
-    private static CassandraResource cassandraResource = CassandraResource.newWithAvailablePorts();
-
 
     @ClassRule
     public static final ServiceITSetup setup =
-        new ServiceITSetupImpl(cassandraResource, new ElasticSearchResource());
+        new ServiceITSetupImpl();
 
     @BeforeClass
     public static void setup() throws Exception {
@@ -88,9 +88,10 @@ public class ImportResourceIT extends AbstractRestIT {
         bucketPrefix = System.getProperty("bucketName");
 
         // start the scheduler after we're all set up
-        JobSchedulerService jobScheduler = cassandraResource.getBean(JobSchedulerService.class);
+        JobSchedulerService jobScheduler = ConcurrentProcessSingleton.getInstance().getSpringResource().getBean( JobSchedulerService.class );
         if (jobScheduler.state() != Service.State.RUNNING) {
-            jobScheduler.startAndWait();
+            jobScheduler.startAsync();
+            jobScheduler.awaitRunning();
         }
 
     }
@@ -152,7 +153,7 @@ public class ImportResourceIT extends AbstractRestIT {
             .addToPath(entity.getUuid().toString())
             .get();
 
-        assertNotNull(entity.getString("state"));
+        assertNotNull(entity.getAsString("state"));
     }
 
     /**
@@ -451,7 +452,7 @@ public class ImportResourceIT extends AbstractRestIT {
 
         final Entity includesEntity = importGetIncludesResponse.getEntities().get( 0 );
 
-        assertEquals( "testImportCorrect.testCol.1.json", includesEntity.getString( "fileName" ) );
+        assertEquals( "testImportCorrect.testCol.1.json", includesEntity.getAsString( "fileName" ) );
         assertEquals(1, includesEntity.get( "importedConnectionCount" ));
         assertEquals(1, includesEntity.get( "importedEntityCount" ));
 

@@ -109,7 +109,7 @@ public class EsEntityIndexImpl implements AliasedEntityIndex {
     private static final String VERIFY_TYPE = "verification";
 
     private static final ImmutableMap<String, Object> DEFAULT_PAYLOAD =
-            ImmutableMap.<String, Object>of( "field", "test" );
+            ImmutableMap.<String, Object>builder().put( "field", "test" ).put(IndexingUtils.ENTITYID_ID_FIELDNAME, UUIDGenerator.newTimeUUID().toString()).build();
 
     private static final MatchAllQueryBuilder MATCH_ALL_QUERY_BUILDER = QueryBuilders.matchAllQuery();
 
@@ -203,8 +203,8 @@ public class EsEntityIndexImpl implements AliasedEntityIndex {
 
             aliasCache.invalidate(alias);
 
-        } catch (InvalidAliasNameException e) {
-            logger.warn("Failed to create alias: " + e.getDetailedMessage());
+        } catch (Exception e) {
+            logger.warn("Failed to create alias ", e);
         }
     }
 
@@ -576,6 +576,8 @@ public class EsEntityIndexImpl implements AliasedEntityIndex {
 
         if ( response.isAcknowledged() ) {
             logger.info( "Deleted index: read {} write {}", alias.getReadAlias(), alias.getWriteAlias());
+            //invlaidate the alias
+            aliasCache.invalidate( alias );
         }
         else {
             logger.info( "Failed to delete index: read {} write {}", alias.getReadAlias(), alias.getWriteAlias());
