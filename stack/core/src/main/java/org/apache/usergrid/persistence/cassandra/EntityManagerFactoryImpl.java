@@ -409,11 +409,6 @@ public class EntityManagerFactoryImpl implements EntityManagerFactory, Applicati
     }
 
     @Override
-    public void refreshIndex() {
-        // no op
-    }
-
-    @Override
     public void flushEntityManagerCaches() {
         // no-op
     }
@@ -438,29 +433,6 @@ public class EntityManagerFactoryImpl implements EntityManagerFactory, Applicati
         throw new UnsupportedOperationException("Not supported.");
     }
 
-
-    @Override
-    public void migrateData() throws Exception {
-
-    }
-
-
-    @Override
-    public String getMigrateDataStatus() {
-        throw new UnsupportedOperationException("Not supported in v1");
-    }
-
-
-    @Override
-    public int getMigrateDataVersion() {
-        throw new UnsupportedOperationException("Not supported in v1");
-    }
-
-
-    @Override
-    public void setMigrationVersion( final int version ) {
-        throw new UnsupportedOperationException("Not supported in v1");
-    }
 
     @Override
     public void addIndex(UUID appId, String suffix,final int shards,final int replicas,final String consistency) {

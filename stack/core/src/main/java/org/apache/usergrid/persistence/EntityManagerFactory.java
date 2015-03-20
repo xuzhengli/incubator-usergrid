@@ -117,34 +117,12 @@ public interface EntityManagerFactory {
 
     public UUID getDefaultAppId();
 
-    public void refreshIndex();
-
     public void rebuildAllIndexes( ProgressObserver po ) throws Exception;
 
     public void rebuildInternalIndexes( ProgressObserver po ) throws Exception;
 
     public void rebuildApplicationIndexes( UUID appId, ProgressObserver po ) throws Exception;
 
-    /**
-     * Perform any data migrations necessary in the system
-     * @throws Exception
-     */
-    public void migrateData() throws Exception;
-
-    /**
-     * Return the migration status message
-     */
-    public String getMigrateDataStatus();
-
-    /**
-     * Return the current migration version of the system
-     */
-    public int getMigrateDataVersion();
-
-    /**
-     * Force the migration version to the specified version
-     */
-    public void setMigrationVersion(int version);
 
     /**
      * Perform a realtime count of every entity in the system.  This can be slow as it traverses the entire system graph
