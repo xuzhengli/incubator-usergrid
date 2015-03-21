@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.usergrid.corepersistence.io.reduce.StreamReducer;
+import org.apache.usergrid.corepersistence.io.state.CursorCache;
 import org.apache.usergrid.persistence.model.entity.Id;
 
 import rx.Observable;
@@ -35,31 +36,32 @@ import rx.functions.Func1;
  */
 public class CommandBuilder {
 
-    private final Id root;
-    private final List<Command<Id>> commandList;
+
+    private CursorCache cache;
+    private final Observable<Id> pathObservable;
 
 
-    public CommandBuilder( final Id root ) {this.root = root;
-        commandList = new ArrayList<>(  );
-    }
-
-    public void addIntermediateCommand(final Command<Id> command){
-      commandList.add( command );
+    public CommandBuilder( final Id root ) {
+       pathObservable = Observable.just( root );
     }
 
 
-    public <T> void addFinalCommand( final Command<T> command, final StreamReducer<T> reducer ) {
-
-        Observable.just("foo").flatMap( new Func1<String, Observable<?>>() {
-            @Override
-            public Observable<?> call( final String s ) {
-                return null;
-            }
-        };
+    /**
+     * Set our cache
+     * @param cache
+     */
+    public void setCache(final CursorCache cache){
+        this.cache = cache;
     }
 
 
-    public List<Command<Id>> getCommands(){
-        return  commandList;
+    /**
+     * Returns the observable that contains the current traversal operations
+     * @return
+     */
+    public Observable<Id> getPathObservable(){
+        return pathObservable;
     }
+
+
 }
