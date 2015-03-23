@@ -29,20 +29,19 @@ import rx.internal.operators.OperatorScan;
 
 
 /**
- * An operation for performing a collect until the predicate returns true
+ * An operation for performing a collect until the shortCircuitWhen returns true
  */
 public class CollectUntil<T, R> implements Observable.Transformer<T, R> {
 
     final Func0<R> stateFactory;
     final Action2<R, ? super T> collector;
-    final Func1<R, Boolean> predicate;
+    final Func1<R, Boolean> shortCircuitWhen;
 
 
-    public CollectUntil( final Func0<R> stateFactory, final Action2<R, ? super T> collector,
-                          final Func1<R, Boolean> predicate ) {
+    public CollectUntil( final Func1<R, Boolean> shortCircuitWhen,  final Func0<R> stateFactory, final Action2<R, ? super T> collector) {
         this.stateFactory = stateFactory;
         this.collector = collector;
-        this.predicate = predicate;
+        this.shortCircuitWhen = shortCircuitWhen;
     }
 
 
@@ -54,7 +53,7 @@ public class CollectUntil<T, R> implements Observable.Transformer<T, R> {
         };
 
 
-        return tObservable.lift( new OperatorScan<>( stateFactory, accumulator ) ).takeUntil( predicate );
+        return tObservable.lift( new OperatorScan<>( stateFactory, accumulator ) ).takeUntil( shortCircuitWhen );
     }
 }
 

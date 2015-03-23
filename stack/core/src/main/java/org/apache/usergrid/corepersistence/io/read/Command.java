@@ -25,14 +25,8 @@ import org.apache.usergrid.persistence.model.entity.Id;
 import rx.Observable;
 
 
-public interface Command<T> {
+public interface Command<T, R> extends Observable.Transformer<T, R> {
 
 
-    /**
-     * Process our input stream
-     * @param input
-     * @return
-     */
-    public Observable<T> process( Observable<T> input );
 
 }

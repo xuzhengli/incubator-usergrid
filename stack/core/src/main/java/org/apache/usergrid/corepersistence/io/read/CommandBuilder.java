@@ -38,11 +38,17 @@ public class CommandBuilder {
 
 
     private CursorCache cache;
-    private final Observable<Id> pathObservable;
+    private Observable<Id> pathObservable;
 
 
     public CommandBuilder( final Id root ) {
        pathObservable = Observable.just( root );
+    }
+
+
+
+    public void addCommand(final Command<Id, Id> intermediateCommand){
+       pathObservable =  pathObservable.compose( intermediateCommand );
     }
 
 

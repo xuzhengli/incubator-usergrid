@@ -33,10 +33,10 @@ public class CollectUntilTest {
     public void testCollectUntil() {
 
         final CollectUntil<Integer, CountCollector> collectUntil =
-            new CollectUntil<>(
+            new CollectUntil<>(  collector -> collector.isFull() ,
                 () -> new CountCollector(),
-                ( collector, value ) -> collector.mark(),
-                collector -> collector.isFull() );
+                ( collector, value ) -> collector.mark()
+                );
 
 
         final CountCollector collector = Observable.range( 0, 200 ).compose( collectUntil ).toBlocking().last();
