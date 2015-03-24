@@ -38,6 +38,7 @@ import org.apache.cassandra.db.marshal.UUIDType;
 
 import org.apache.usergrid.persistence.collection.CollectionScope;
 import org.apache.usergrid.persistence.collection.MvccLogEntry;
+import org.apache.usergrid.persistence.collection.ScopeSet;
 import org.apache.usergrid.persistence.collection.VersionSet;
 import org.apache.usergrid.persistence.collection.exception.CollectionRuntimeException;
 import org.apache.usergrid.persistence.collection.mvcc.MvccLogEntrySerializationStrategy;
@@ -49,6 +50,7 @@ import org.apache.usergrid.persistence.core.astyanax.MultiTennantColumnFamily;
 import org.apache.usergrid.persistence.core.astyanax.MultiTennantColumnFamilyDefinition;
 import org.apache.usergrid.persistence.core.astyanax.ScopedRowKey;
 import org.apache.usergrid.persistence.core.migration.schema.Migration;
+import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.model.entity.Id;
 
 import com.google.common.base.Preconditions;
@@ -98,7 +100,7 @@ public class MvccLogEntrySerializationStrategyImpl implements MvccLogEntrySerial
 
 
     @Override
-    public MutationBatch write( final CollectionScope collectionScope, final MvccLogEntry entry ) {
+    public MutationBatch write( final ApplicationScope applicationScope, final CollectionScope collectionScope, final MvccLogEntry entry ) {
 
         Preconditions.checkNotNull( collectionScope, "collectionScope is required" );
         Preconditions.checkNotNull( entry, "entry is required" );
@@ -108,7 +110,7 @@ public class MvccLogEntrySerializationStrategyImpl implements MvccLogEntrySerial
         final UUID colName = entry.getVersion();
         final StageStatus stageStatus = new StageStatus( stage, entry.getState() );
 
-        return doWrite( collectionScope, entry.getEntityId(), entry.getVersion(), new RowOp() {
+        return doWrite(applicationScope, collectionScope, entry.getEntityId(), entry.getVersion(), new RowOp() {
             @Override
             public void doOp( final ColumnListMutation<UUID> colMutation ) {
 
@@ -126,9 +128,9 @@ public class MvccLogEntrySerializationStrategyImpl implements MvccLogEntrySerial
 
 
     @Override
-    public VersionSet load( final CollectionScope collectionScope, final Collection<Id> entityIds,
+    public VersionSet load( final ApplicationScope applicationScope, final Collection<ScopeSet<Id>> entityIds,
                             final UUID maxVersion ) {
-        Preconditions.checkNotNull( collectionScope, "collectionScope is required" );
+        Preconditions.checkNotNull( applicationScope, "applicationScope is required" );
         Preconditions.checkNotNull( entityIds, "entityIds is required" );
         Preconditions.checkArgument( entityIds.size() > 0, "You must specify an Id" );
         Preconditions.checkNotNull( maxVersion, "maxVersion is required" );
@@ -139,24 +141,28 @@ public class MvccLogEntrySerializationStrategyImpl implements MvccLogEntrySerial
                 "requested size cannot be over configured maximum" );
 
 
-        final Id applicationId = collectionScope.getApplication();
-        final Id ownerId = collectionScope.getOwner();
-        final String collectionName = collectionScope.getName();
+        final Id applicationId = applicationScope.getApplication();
+
 
 
         final List<ScopedRowKey<CollectionPrefixedKey<Id>>> rowKeys = new ArrayList<>( entityIds.size() );
 
 
-        for ( final Id entityId : entityIds ) {
-            final CollectionPrefixedKey<Id> collectionPrefixedKey =
+        for(ScopeSet<Id> scopeSet: entityIds) {
+            final Id ownerId = scopeSet.getScope().getOwner();
+            final String collectionName = scopeSet.getScope().getName();
+
+            for ( final Id entityId : scopeSet.getIdentifiers() ) {
+                final CollectionPrefixedKey<Id> collectionPrefixedKey =
                     new CollectionPrefixedKey<>( collectionName, ownerId, entityId );
 
 
-            final ScopedRowKey<CollectionPrefixedKey<Id>> rowKey =
+                final ScopedRowKey<CollectionPrefixedKey<Id>> rowKey =
                     ScopedRowKey.fromKey( applicationId, collectionPrefixedKey );
 
 
-            rowKeys.add( rowKey );
+                rowKeys.add( rowKey );
+            }
         }
 
 
@@ -169,7 +175,7 @@ public class MvccLogEntrySerializationStrategyImpl implements MvccLogEntrySerial
                                           .iterator();
         }
         catch ( ConnectionException e ) {
-            throw new CollectionRuntimeException( null, collectionScope, "An error occurred connecting to cassandra",
+            throw new CollectionRuntimeException( null, applicationScope, "An error occurred connecting to cassandra",
                     e );
         }
 
@@ -207,8 +213,9 @@ public class MvccLogEntrySerializationStrategyImpl implements MvccLogEntrySerial
 
 
     @Override
-    public List<MvccLogEntry> load( final CollectionScope collectionScope, final Id entityId, final UUID version,
+    public List<MvccLogEntry> load( final ApplicationScope applicationScope, final CollectionScope collectionScope, final Id entityId, final UUID version,
                                     final int maxSize ) {
+        Preconditions.checkNotNull( applicationScope, "applicationScope is required" );
         Preconditions.checkNotNull( collectionScope, "collectionScope is required" );
         Preconditions.checkNotNull( entityId, "entity id is required" );
         Preconditions.checkNotNull( version, "version is required" );
@@ -218,7 +225,7 @@ public class MvccLogEntrySerializationStrategyImpl implements MvccLogEntrySerial
         ColumnList<UUID> columns;
         try {
 
-            final Id applicationId = collectionScope.getApplication();
+            final Id applicationId = applicationScope.getApplication();
             final Id ownerId = collectionScope.getOwner();
             final String collectionName = collectionScope.getName();
 
@@ -253,13 +260,14 @@ public class MvccLogEntrySerializationStrategyImpl implements MvccLogEntrySerial
 
 
     @Override
-    public MutationBatch delete( final CollectionScope context, final Id entityId, final UUID version ) {
+    public MutationBatch delete(final ApplicationScope applicationScope, final CollectionScope context, final Id entityId, final UUID version ) {
 
+        Preconditions.checkNotNull( applicationScope, "applicationScope is required" );
         Preconditions.checkNotNull( context, "context is required" );
         Preconditions.checkNotNull( entityId, "entityId is required" );
         Preconditions.checkNotNull( version, "version context is required" );
 
-        return doWrite( context, entityId, version, new RowOp() {
+        return doWrite( applicationScope, context, entityId, version, new RowOp() {
             @Override
             public void doOp( final ColumnListMutation<UUID> colMutation ) {
                 colMutation.deleteColumn( version );
@@ -299,7 +307,7 @@ public class MvccLogEntrySerializationStrategyImpl implements MvccLogEntrySerial
      *
      * @param collectionScope We need to use this when getting the keyspace
      */
-    private MutationBatch doWrite( CollectionScope collectionScope, Id entityId, UUID version, RowOp op ) {
+    private MutationBatch doWrite(final ApplicationScope applicationScope,  CollectionScope collectionScope, Id entityId, UUID version, RowOp op ) {
 
         final MutationBatch batch = keyspace.prepareMutationBatch();
 
@@ -307,7 +315,7 @@ public class MvccLogEntrySerializationStrategyImpl implements MvccLogEntrySerial
 
         LOG.debug( "Writing version with timestamp '{}'", timestamp );
 
-        final Id applicationId = collectionScope.getApplication();
+        final Id applicationId = applicationScope.getApplication();
         final Id ownerId = collectionScope.getOwner();
         final String collectionName = collectionScope.getName();
 

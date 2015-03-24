@@ -55,7 +55,7 @@ public class AllEntitiesInSystemImpl extends AbstractGraphVisitorImpl<EntityIdSc
         CollectionScope scope =
                                CpNamingUtils.getCollectionScopeNameFromEntityType( applicationScope.getApplication(), nodeId.getType() );
 
-                           final EntityIdScope idScope = new EntityIdScope( scope, nodeId );
+                           final EntityIdScope idScope = new EntityIdScope( applicationScope, scope, nodeId );
 
                            return idScope;
     }

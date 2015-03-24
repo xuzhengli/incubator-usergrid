@@ -22,7 +22,6 @@ package org.apache.usergrid.corepersistence.migration;
 
 import org.junit.Test;
 
-import org.apache.usergrid.AbstractCoreIT;
 import org.apache.usergrid.corepersistence.ManagerCache;
 import org.apache.usergrid.corepersistence.util.CpNamingUtils;
 import org.apache.usergrid.persistence.collection.CollectionScope;
@@ -60,7 +59,7 @@ public class EntityTypeMappingMigrationIT  {
 
         final Id entityId1 = createId("thing");
 
-        final EntityIdScope idScope1 = new EntityIdScope(scope1, entityId1 );
+        final EntityIdScope idScope1 = new EntityIdScope( applicationScope, scope1, entityId1 );
 
         final MapScope mapScope1 = new MapScopeImpl(applicationId, CpNamingUtils.TYPES_BY_UUID_MAP );
 
@@ -72,7 +71,7 @@ public class EntityTypeMappingMigrationIT  {
 
         final Id entityId2 = createId("foo");
 
-        final EntityIdScope idScope2 = new EntityIdScope( scope2, entityId2 );
+        final EntityIdScope idScope2 = new EntityIdScope( applicationScope, scope2, entityId2 );
 
         final MapScope mapScope2 = new MapScopeImpl(applicationId, CpNamingUtils.TYPES_BY_UUID_MAP );
 

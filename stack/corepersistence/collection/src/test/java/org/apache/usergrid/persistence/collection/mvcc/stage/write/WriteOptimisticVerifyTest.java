@@ -83,12 +83,12 @@ public class WriteOptimisticVerifyTest extends AbstractMvccEntityStageTest {
         final MvccEntity mvccEntity = fromEntity( entity );
 
         List<MvccLogEntry> logEntries = new ArrayList<MvccLogEntry>();
-        logEntries.add( new MvccLogEntryImpl( 
+        logEntries.add( new MvccLogEntryImpl(
             entity.getId(), UUIDGenerator.newTimeUUID(), Stage.ACTIVE, MvccLogEntry.State.COMPLETE ));
-        logEntries.add( new MvccLogEntryImpl( 
+        logEntries.add( new MvccLogEntryImpl(
             entity.getId(), UUIDGenerator.newTimeUUID(), Stage.COMMITTED, MvccLogEntry.State.COMPLETE ));
 
-        MvccLogEntrySerializationStrategy noConflictLog = 
+        MvccLogEntrySerializationStrategy noConflictLog =
             mock( MvccLogEntrySerializationStrategy.class );
 
         when( noConflictLog.load( collectionScope, entity.getId(), entity.getVersion(), 2) )
@@ -100,7 +100,7 @@ public class WriteOptimisticVerifyTest extends AbstractMvccEntityStageTest {
         WriteOptimisticVerify newStage = new WriteOptimisticVerify( noConflictLog );
 
 
-        newStage.call( new CollectionIoEvent<>( collectionScope, mvccEntity ) );
+        newStage.call( new CollectionIoEvent<>( applicationScope, collectionScope, mvccEntity ) );
 
 
     }
@@ -121,15 +121,15 @@ public class WriteOptimisticVerifyTest extends AbstractMvccEntityStageTest {
 
         // log that one operation is active on entity
         List<MvccLogEntry> logEntries = new ArrayList<MvccLogEntry>();
-        logEntries.add( new MvccLogEntryImpl( 
+        logEntries.add( new MvccLogEntryImpl(
             entity.getId(), UUIDGenerator.newTimeUUID(), Stage.ACTIVE, MvccLogEntry.State.COMPLETE ));
 
         // log another operation as active on entity
-        logEntries.add( new MvccLogEntryImpl( 
+        logEntries.add( new MvccLogEntryImpl(
             entity.getId(), UUIDGenerator.newTimeUUID(), Stage.ACTIVE, MvccLogEntry.State.COMPLETE ));
 
         // mock up the log
-        MvccLogEntrySerializationStrategy mvccLog = 
+        MvccLogEntrySerializationStrategy mvccLog =
             mock( MvccLogEntrySerializationStrategy.class );
         when( mvccLog.load( scope, entity.getId(), entity.getVersion(), 2) )
             .thenReturn( logEntries );
@@ -150,7 +150,7 @@ public class WriteOptimisticVerifyTest extends AbstractMvccEntityStageTest {
         RollbackAction rollbackAction = new RollbackAction( mvccLog, uvstrat );
 
         try {
-            newStage.call( new CollectionIoEvent<>(scope, mvccEntity));
+            newStage.call( new CollectionIoEvent<>( applicationScope, scope, mvccEntity));
 
         } catch (WriteOptimisticVerifyException e) {
             log.info("Error", e);

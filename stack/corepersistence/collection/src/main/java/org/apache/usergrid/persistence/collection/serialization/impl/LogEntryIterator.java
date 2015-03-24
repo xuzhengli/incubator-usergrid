@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.apache.usergrid.persistence.collection.CollectionScope;
 import org.apache.usergrid.persistence.collection.mvcc.MvccLogEntrySerializationStrategy;
 import org.apache.usergrid.persistence.collection.MvccLogEntry;
+import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.model.entity.Id;
 
 import com.google.common.base.Preconditions;
@@ -22,6 +23,7 @@ public class LogEntryIterator implements Iterator<MvccLogEntry> {
 
 
     private final MvccLogEntrySerializationStrategy logEntrySerializationStrategy;
+    private final ApplicationScope applicationScope;
     private final CollectionScope scope;
     private final Id entityId;
     private final int pageSize;
@@ -40,13 +42,14 @@ public class LogEntryIterator implements Iterator<MvccLogEntry> {
      * @param pageSize The fetch size to get when querying the serialization strategy
      */
     public LogEntryIterator( final MvccLogEntrySerializationStrategy logEntrySerializationStrategy,
-                             final CollectionScope scope, final Id entityId, final UUID maxVersion,
+                             final ApplicationScope applicationScope,  final CollectionScope scope, final Id entityId, final UUID maxVersion,
                              final int pageSize ) {
 
         Preconditions.checkArgument( pageSize > 0, "pageSize must be > 0" );
 
         this.logEntrySerializationStrategy = logEntrySerializationStrategy;
         this.scope = scope;
+        this.applicationScope = applicationScope;
         this.entityId = entityId;
         this.nextStart = maxVersion;
         this.pageSize = pageSize;
@@ -92,7 +95,7 @@ public class LogEntryIterator implements Iterator<MvccLogEntry> {
         final int requestedSize = pageSize + 1;
 
         //loop through even entry that's < this one and remove it
-        List<MvccLogEntry> results = logEntrySerializationStrategy.load( scope, entityId, nextStart, requestedSize );
+        List<MvccLogEntry> results = logEntrySerializationStrategy.load( applicationScope, scope, entityId, nextStart, requestedSize );
 
         //we always remove the first version if it's equal since it's returned
         if ( results.size() > 0 && results.get( 0 ).getVersion().equals( nextStart ) ) {

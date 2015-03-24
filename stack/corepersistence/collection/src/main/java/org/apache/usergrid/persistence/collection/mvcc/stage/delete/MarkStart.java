@@ -49,8 +49,8 @@ import rx.functions.Func1;
 
 
 /**
- * This is the first stage and should be invoked immediately when a write is started.  
- * It should persist the start of a new write in the data store for 
+ * This is the first stage and should be invoked immediately when a write is started.
+ * It should persist the start of a new write in the data store for
  * a checkpoint and recovery
  */
 @Singleton
@@ -99,7 +99,7 @@ public class MarkStart implements Func1<CollectionIoEvent<Id>, CollectionIoEvent
         }
         catch ( ConnectionException e ) {
             LOG.error( "Failed to execute write asynchronously ", e );
-            throw new CollectionRuntimeException( null, collectionScope, 
+            throw new CollectionRuntimeException( null, collectionScope,
                     "Failed to execute write asynchronously ", e );
         }
 
@@ -109,6 +109,6 @@ public class MarkStart implements Func1<CollectionIoEvent<Id>, CollectionIoEvent
             entityId, version, MvccEntity.Status.COMPLETE, Optional.<Entity>absent() );
 
 
-        return new CollectionIoEvent<MvccEntity>( collectionScope, nextStage );
+        return new CollectionIoEvent<MvccEntity>( applicationScope, collectionScope, nextStage );
     }
 }

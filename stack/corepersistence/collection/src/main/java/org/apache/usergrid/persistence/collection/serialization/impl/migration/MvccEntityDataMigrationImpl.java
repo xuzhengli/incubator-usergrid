@@ -38,6 +38,7 @@ import org.apache.usergrid.persistence.collection.serialization.UniqueValue;
 import org.apache.usergrid.persistence.collection.serialization.UniqueValueSerializationStrategy;
 import org.apache.usergrid.persistence.collection.serialization.impl.MvccEntitySerializationStrategyV3Impl;
 import org.apache.usergrid.persistence.collection.serialization.impl.UniqueValueImpl;
+import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.model.util.EntityUtils;
 import org.apache.usergrid.persistence.core.migration.data.DataMigrationException;
 import org.apache.usergrid.persistence.core.migration.data.DataMigration;
@@ -58,8 +59,6 @@ import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
 
 import rx.Observable;
 import rx.Subscriber;
-import rx.functions.Action1;
-import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 
 
@@ -126,6 +125,7 @@ public class MvccEntityDataMigrationImpl implements DataMigration<EntityIdScope>
         final Observable<List<EntityToSaveMessage>> migrated =
             migrationDataProvider.getData().subscribeOn( Schedulers.io() ).flatMap( entityToSaveList -> Observable.just( entityToSaveList ).flatMap( entityIdScope -> {
 
+                final ApplicationScope applicationScope = entityIdScope.getApplicationScope();
                 //load the entity
                 final CollectionScope currentScope = entityIdScope.getCollectionScope();
 
@@ -138,7 +138,7 @@ public class MvccEntityDataMigrationImpl implements DataMigration<EntityIdScope>
                 //won't support anything beyond V2
 
                 final Iterator<MvccEntity> allVersions =
-                    migration.from.loadAscendingHistory( currentScope, entityIdScope.getId(), startTime, 100 );
+                    migration.from.loadAscendingHistory( applicationScope, currentScope, entityIdScope.getId(), startTime, 100 );
 
                 //emit all the entity versions
                 return Observable.create( new Observable.OnSubscribe<EntityToSaveMessage>() {
@@ -148,7 +148,7 @@ public class MvccEntityDataMigrationImpl implements DataMigration<EntityIdScope>
 
                         while ( allVersions.hasNext() ) {
                             final EntityToSaveMessage message =
-                                new EntityToSaveMessage( currentScope, allVersions.next() );
+                                new EntityToSaveMessage( applicationScope, currentScope, allVersions.next() );
                             subscriber.onNext( message );
                         }
 
@@ -163,7 +163,7 @@ public class MvccEntityDataMigrationImpl implements DataMigration<EntityIdScope>
                         List<EntityVersionCleanupTask> entityVersionCleanupTasks = new ArrayList( entities.size() );
 
                         for ( EntityToSaveMessage message : entities ) {
-                            final MutationBatch entityRewrite = migration.to.write( message.scope, message.entity );
+                            final MutationBatch entityRewrite = migration.to.write(message.applicationScope, message.scope, message.entity );
 
                             //add to
                             // the
@@ -195,7 +195,7 @@ public class MvccEntityDataMigrationImpl implements DataMigration<EntityIdScope>
 
                                 UniqueValue written = new UniqueValueImpl( field, entityId, version );
 
-                                MutationBatch mb = uniqueValueSerializationStrategy.write( message.scope, written );
+                                MutationBatch mb = uniqueValueSerializationStrategy.write(message.applicationScope,  message.scope, written );
 
 
                                 // merge into our
@@ -247,11 +247,14 @@ public class MvccEntityDataMigrationImpl implements DataMigration<EntityIdScope>
 
 
     private static final class EntityToSaveMessage {
+        private final ApplicationScope applicationScope;
         private final CollectionScope scope;
         private final MvccEntity entity;
 
 
-        private EntityToSaveMessage( final CollectionScope scope, final MvccEntity entity ) {
+        private EntityToSaveMessage( final ApplicationScope applicationScope, final CollectionScope scope, final
+        MvccEntity entity ) {
+            this.applicationScope = applicationScope;
             this.scope = scope;
             this.entity = entity;
         }

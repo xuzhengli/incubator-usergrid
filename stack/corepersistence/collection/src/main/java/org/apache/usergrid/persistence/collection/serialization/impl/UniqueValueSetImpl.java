@@ -23,26 +23,27 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.usergrid.persistence.collection.CollectionScope;
 import org.apache.usergrid.persistence.collection.serialization.UniqueValue;
 import org.apache.usergrid.persistence.collection.serialization.UniqueValueSet;
 
 
 public class UniqueValueSetImpl implements UniqueValueSet {
 
-    private final Map<String, UniqueValue> values;
+    private final Map<MapKey, UniqueValue> values;
 
     public UniqueValueSetImpl(final int expectedMaxSize) {
         values = new HashMap<>(expectedMaxSize);
     }
 
 
-    public void addValue(UniqueValue value){
-        values.put( value.getField().getName(), value );
+    public void addValue(final CollectionScope scope, final UniqueValue value){
+        values.put( new MapKey( scope, value.getField().getName()), value );
     }
 
     @Override
-    public UniqueValue getValue( final String fieldName ) {
-        return values.get( fieldName );
+    public UniqueValue getValue(final CollectionScope scope,  final String fieldName ) {
+        return values.get( new MapKey(scope, fieldName ));
     }
 
 
@@ -58,9 +59,9 @@ public class UniqueValueSetImpl implements UniqueValueSet {
     private static final class
             UniqueValueIterator implements Iterator<UniqueValue>{
 
-        private final Iterator<Map.Entry<String, UniqueValue>> sourceIterator;
+        private final Iterator<Map.Entry<MapKey, UniqueValue>> sourceIterator;
 
-        public UniqueValueIterator( final Set<Map.Entry<String, UniqueValue>> entries ) {
+        public UniqueValueIterator( final Set<Map.Entry<MapKey, UniqueValue>> entries ) {
             this.sourceIterator = entries.iterator();
         }
 
@@ -82,4 +83,20 @@ public class UniqueValueSetImpl implements UniqueValueSet {
             throw new UnsupportedOperationException( "Remove is unsupported" );
         }
     }
+
+
+    /**
+     * The key to look up unique fields by scope and field name
+     */
+    private static final class MapKey{
+        private final CollectionScope scope;
+        private final String fieldName;
+
+
+        private MapKey( final CollectionScope scope, final String fieldName ) {
+            this.scope = scope;
+            this.fieldName = fieldName;
+        }
+    }
+
 }

@@ -89,7 +89,7 @@ public abstract class AbstractMvccEntityStageTest {
             when( mvccEntity.getId() ).thenReturn( id );
         }
 
-        validateStage( new CollectionIoEvent<MvccEntity>( context, mvccEntity ) );
+        validateStage( new CollectionIoEvent<MvccEntity>( applicationScope, context, mvccEntity ) );
     }
 
     /**

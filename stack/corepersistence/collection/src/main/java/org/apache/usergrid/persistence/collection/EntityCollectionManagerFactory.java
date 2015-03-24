@@ -19,6 +19,9 @@
 package org.apache.usergrid.persistence.collection;
 
 
+import org.apache.usergrid.persistence.core.scope.ApplicationScope;
+
+
 /**
  * A basic factory that creates a collection manager with the given context.
  * Each instance of this factory should exist for a Single ApplicationScope
@@ -31,13 +34,13 @@ public interface EntityCollectionManagerFactory {
      * and will shard responses.  The returned instance should not be shared
      * among threads it will not be guaranteed to be thread safe.
      *
-     * @param collectionScope The collectionScope collectionScope to use
+     * @param applicationScope The application scope collectionScope to use
      * when creating the collectionScope manager
      *
      * @return The collectionScope manager to perform operations within the provided context
      */
-    public EntityCollectionManager
-        createCollectionManager( CollectionScope collectionScope );
+    EntityCollectionManager
+        createCollectionManager( ApplicationScope applicationScope );
 
 
     void invalidate();

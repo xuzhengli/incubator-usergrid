@@ -15,6 +15,7 @@ import org.apache.usergrid.persistence.collection.mvcc.entity.Stage;
 import org.apache.usergrid.persistence.collection.mvcc.entity.impl.MvccEntityImpl;
 import org.apache.usergrid.persistence.collection.mvcc.entity.impl.MvccLogEntryImpl;
 import org.apache.usergrid.persistence.collection.mvcc.stage.CollectionIoEvent;
+import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.model.entity.Entity;
 import org.apache.usergrid.persistence.model.entity.Id;
 import org.apache.usergrid.persistence.model.util.UUIDGenerator;
@@ -56,6 +57,7 @@ public class WriteStart implements Func1<CollectionIoEvent<Entity>, CollectionIo
         {
             final Entity entity = ioEvent.getEvent();
             final CollectionScope collectionScope = ioEvent.getEntityCollection();
+            final ApplicationScope applicationScope = ioEvent.getApplicationScope();
 
             final Id entityId = entity.getId();
 
@@ -65,7 +67,7 @@ public class WriteStart implements Func1<CollectionIoEvent<Entity>, CollectionIo
             final MvccLogEntry startEntry = new MvccLogEntryImpl( entityId, newVersion,
                     Stage.ACTIVE, MvccLogEntry.State.COMPLETE);
 
-            MutationBatch write = logStrategy.write( collectionScope, startEntry );
+            MutationBatch write = logStrategy.write(applicationScope,  collectionScope, startEntry );
 
             final MvccEntityImpl nextStage = new MvccEntityImpl( entityId, newVersion, MvccEntity.Status.COMPLETE, entity );
             if(ioEvent.getEvent().hasVersion()) {
@@ -73,11 +75,11 @@ public class WriteStart implements Func1<CollectionIoEvent<Entity>, CollectionIo
                     write.execute();
                 } catch (ConnectionException e) {
                     LOG.error("Failed to execute write ", e);
-                    throw new WriteStartException(nextStage, collectionScope,
+                    throw new WriteStartException(nextStage, applicationScope, collectionScope,
                         "Failed to execute write ", e);
                 } catch (NullPointerException e) {
                     LOG.error("Failed to execute write ", e);
-                    throw new WriteStartException(nextStage, collectionScope,
+                    throw new WriteStartException(nextStage, applicationScope, collectionScope,
                         "Failed to execute write", e);
                 }
             }
@@ -85,7 +87,7 @@ public class WriteStart implements Func1<CollectionIoEvent<Entity>, CollectionIo
             //create the mvcc entity for the next stage
            //TODO: we need to create a complete or partial update here (or sooner)
 
-            return new CollectionIoEvent<MvccEntity>( collectionScope, nextStage );
+            return new CollectionIoEvent<MvccEntity>( applicationScope, collectionScope, nextStage );
         }
     }
 }

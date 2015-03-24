@@ -28,15 +28,17 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.commons.lang.NotImplementedException;
+
 import org.apache.usergrid.persistence.collection.CollectionScope;
 import org.apache.usergrid.persistence.collection.EntityCollectionManager;
 import org.apache.usergrid.persistence.collection.EntitySet;
 import org.apache.usergrid.persistence.collection.FieldSet;
 import org.apache.usergrid.persistence.collection.MvccEntity;
+import org.apache.usergrid.persistence.collection.ScopeSet;
 import org.apache.usergrid.persistence.collection.VersionSet;
 import org.apache.usergrid.persistence.collection.guice.CollectionTaskExecutor;
 import org.apache.usergrid.persistence.collection.mvcc.MvccLogEntrySerializationStrategy;
-import org.apache.usergrid.persistence.collection.mvcc.entity.MvccValidationUtils;
 import org.apache.usergrid.persistence.collection.mvcc.stage.CollectionIoEvent;
 import org.apache.usergrid.persistence.collection.mvcc.stage.delete.MarkCommit;
 import org.apache.usergrid.persistence.collection.mvcc.stage.delete.MarkStart;
@@ -50,8 +52,10 @@ import org.apache.usergrid.persistence.collection.serialization.UniqueValue;
 import org.apache.usergrid.persistence.collection.serialization.UniqueValueSerializationStrategy;
 import org.apache.usergrid.persistence.collection.serialization.UniqueValueSet;
 import org.apache.usergrid.persistence.collection.serialization.impl.MutableFieldSet;
+import org.apache.usergrid.persistence.collection.serialization.impl.ScopeSetImpl;
 import org.apache.usergrid.persistence.core.guice.ProxyImpl;
 import org.apache.usergrid.persistence.core.metrics.MetricsFactory;
+import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.core.task.Task;
 import org.apache.usergrid.persistence.core.task.TaskExecutor;
 import org.apache.usergrid.persistence.core.util.Health;
@@ -91,7 +95,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
 
     private static final Logger logger = LoggerFactory.getLogger( EntityCollectionManagerImpl.class );
 
-    private final CollectionScope collectionScope;
+    private final ApplicationScope applicationScope;
 
 
     //start stages
@@ -141,14 +145,15 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
         final Keyspace                             keyspace,
         final EntityVersionTaskFactory entityVersionTaskFactory,
         @CollectionTaskExecutor final TaskExecutor taskExecutor,
-        @Assisted final CollectionScope            collectionScope,
+        @Assisted final ApplicationScope            applicationScope,
         final MetricsFactory metricsFactory
 
     ) {
         this.uniqueValueSerializationStrategy = uniqueValueSerializationStrategy;
         this.entitySerializationStrategy = entitySerializationStrategy;
 
-        MvccValidationUtils.validateCollectionScope( collectionScope );
+
+        ValidationUtils.validateApplicationScope( applicationScope );
 
         this.writeStart = writeStart;
         this.writeVerifyUnique = writeVerifyUnique;
@@ -165,7 +170,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
         this.entityVersionTaskFactory = entityVersionTaskFactory;
         this.taskExecutor = taskExecutor;
 
-        this.collectionScope = collectionScope;
+        this.applicationScope = applicationScope;
         this.mvccLogEntrySerializationStrategy = mvccLogEntrySerializationStrategy;
         this.writeTimer = metricsFactory.getTimer(EntityCollectionManagerImpl.class,"write.timer");
         this.writeMeter = metricsFactory.getMeter(EntityCollectionManagerImpl.class, "write.meter");
@@ -181,7 +186,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
 
 
     @Override
-    public Observable<Entity> write( final Entity entity ) {
+    public Observable<Entity> write( final CollectionScope collectionScope, final Entity entity ) {
 
         //do our input validation
         Preconditions.checkNotNull( entity, "Entity is required in the new stage of the mvcc write" );
@@ -192,7 +197,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
 
 
         // create our observable and start the write
-        final CollectionIoEvent<Entity> writeData = new CollectionIoEvent<Entity>( collectionScope, entity );
+        final CollectionIoEvent<Entity> writeData = new CollectionIoEvent<Entity>( applicationScope, collectionScope, entity );
 
         Observable<CollectionIoEvent<MvccEntity>> observable = stageRunner( writeData, writeStart );
 
@@ -228,14 +233,14 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
 
 
     @Override
-    public Observable<Id> delete( final Id entityId ) {
+    public Observable<Id> delete(final CollectionScope collectionScope,  final Id entityId ) {
 
         Preconditions.checkNotNull( entityId, "Entity id is required in this stage" );
         Preconditions.checkNotNull( entityId.getUuid(), "Entity id is required in this stage" );
         Preconditions.checkNotNull( entityId.getType(), "Entity type is required in this stage" );
 
         final Timer.Context timer = deleteTimer.time();
-        Observable<Id> o = Observable.just( new CollectionIoEvent<Id>( collectionScope, entityId ) )
+        Observable<Id> o = Observable.just( new CollectionIoEvent<Id>( applicationScope, collectionScope, entityId ) )
             .map(markStart)
             .doOnNext( markCommit )
             .map(new Func1<CollectionIoEvent<MvccEntity>, Id>() {
@@ -268,14 +273,17 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
 
 
     @Override
-    public Observable<Entity> load( final Id entityId ) {
+    public Observable<Entity> load(final CollectionScope collectionScope,  final Id entityId ) {
 
         Preconditions.checkNotNull( entityId, "Entity id required in the load stage" );
         Preconditions.checkNotNull( entityId.getUuid(), "Entity id uuid required in load stage" );
         Preconditions.checkNotNull( entityId.getType(), "Entity id type required in load stage" );
 
         final Timer.Context timer = loadTimer.time();
-        return load( Collections.singleton( entityId ) ).flatMap(new Func1<EntitySet, Observable<Entity>>() {
+
+        final ScopeSet<Id> entityScopeSet = new ScopeSetImpl<>( collectionScope,  Collections.singleton( entityId ) );
+
+        return load( Collections.singleton( entityScopeSet) ).flatMap(new Func1<EntitySet, Observable<Entity>>() {
             @Override
             public Observable<Entity> call(final EntitySet entitySet) {
                 final MvccEntity entity = entitySet.getEntity(entityId);
@@ -306,7 +314,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
 
 
     @Override
-    public Observable<EntitySet> load( final Collection<Id> entityIds ) {
+    public Observable<EntitySet> load( final Collection<ScopeSet<Id>> entityIds ) {
 
         Preconditions.checkNotNull( entityIds, "entityIds cannot be null" );
 
@@ -318,7 +326,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
             public void call( final Subscriber<? super EntitySet> subscriber ) {
                 try {
                     final EntitySet results =
-                            entitySerializationStrategy.load( collectionScope, entityIds, UUIDGenerator.newTimeUUID() );
+                            entitySerializationStrategy.load( applicationScope,  entityIds, UUIDGenerator.newTimeUUID() );
 
                     subscriber.onNext( results );
                     subscriber.onCompleted();
@@ -344,14 +352,16 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
 
 
     @Override
-    public Observable<Id> getIdField( final Field field ) {
-        final List<Field> fields = Collections.singletonList( field );
-        return rx.Observable.from( fields ).map( new Func1<Field, Id>() {
+    public Observable<Id> getIdField(final CollectionScope collectionScope, final Field field ) {
+
+        return rx.Observable.just( field ).map( new Func1<Field, Id>() {
             @Override
             public Id call( Field field ) {
                 try {
-                    final UniqueValueSet set = uniqueValueSerializationStrategy.load( collectionScope, fields );
-                    final UniqueValue value = set.getValue( field.getName() );
+
+                    final ScopeSet<Field> scopeSet = new ScopeSetImpl<>( collectionScope, field );
+                    final UniqueValueSet set = uniqueValueSerializationStrategy.load(applicationScope,  Collections.singleton( scopeSet ) );
+                    final UniqueValue value = set.getValue(collectionScope,  field.getName() );
                     return value == null ? null : value.getEntityId();
                 }
                 catch ( ConnectionException e ) {
@@ -369,77 +379,102 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
      * @return
      */
     @Override
-    public Observable<FieldSet> getEntitiesFromFields( final Collection<Field> fields ) {
-        return rx.Observable.just(fields).map( new Func1<Collection<Field>, FieldSet>() {
-            @Override
-            public FieldSet call( Collection<Field> fields ) {
-                try {
+    public Observable<FieldSet> getEntitiesFromFields( final Collection<ScopeSet<Field>> fields ) {
+//        return rx.Observable.just(fields).map( new Func1<Collection<ScopeSet<Field>>, FieldSet>() {
+//            @Override
+//            public FieldSet call( Collection<ScopeSet<Field>> fields ) {
+//                try {
+//
+//                    final UUID startTime = UUIDGenerator.newTimeUUID();
+//
+//                    //Get back set of unique values that correspond to collection of fields
+//                    UniqueValueSet set = uniqueValueSerializationStrategy.load( applicationScope, fields );
+//
+//                    //Short circut if we don't have any uniqueValues from the given fields.
+//                    if(!set.iterator().hasNext()){
+//                        return new MutableFieldSet( 0 );
+//                    }
+//
+//
+//                    //loop through each field, and construct an entity load
+//
+//                    List<ScopeSet<Id>> scopes = new ArrayList<ScopeSet<Id>>( fields.size() );
+//
+//                    final List<Id> entityIds = new ArrayList<>( fields.size() );
+//                    final List<ScopeSet<UniqueValue>> uniqueValues = new ArrayList<>( fields.size() );
+//
+//
+//
+//                    for(ScopeSet<Field> scope: fields) {
+//
+//
+//
+//
+//                        final CollectionScope collectionScope = scope.getScope();
+//
+//                        final ScopeSet<UniqueValue> scopedValue = new Sc
+//
+//
+//
+//                        for ( final Field expectedField : scope.getIdentifiers() ) {
+//
+//                            UniqueValue value = set.getValue( collectionScope, expectedField.getName() );
+//
+//                            if ( value == null ) {
+//                                logger.debug( "Field does not correspond to a unique value" );
+//                            }
+//
+//                            entityIds.add( value.getEntityId() );
+//                            uniqueValues.add( value );
+//                        }
+//
+//                        final ScopeSet<Id> scopeSet = new ScopeSetImpl<Id>( collectionScope, entityIds );
+//
+//                        scopes.add( scopeSet );
+//                    }
+//
+//
+//                    //Load a entity for each entityId we retrieved.
+//                    final EntitySet entitySet = entitySerializationStrategy.load(applicationScope, scopes, startTime);
+//
+//                    //now loop through and ensure the entities are there.
+//                    final MutationBatch deleteBatch = keyspace.prepareMutationBatch();
+//
+//                    final MutableFieldSet response = new MutableFieldSet(fields.size());
+//
+//                    for(final UniqueValue expectedUnique: uniqueValues) {
+//                        final MvccEntity entity = entitySet.getEntity( expectedUnique.getEntityId() );
+//
+//                        //bad unique value, delete this, it's inconsistent
+//                        if(entity == null || !entity.getEntity().isPresent()){
+//                            final MutationBatch valueDelete = uniqueValueSerializationStrategy.delete(collectionScope, expectedUnique);
+//                            deleteBatch.mergeShallow( valueDelete );
+//                            continue;
+//                        }
+//
+//
+//                        //else add it to our result set
+//                        response.addEntity( expectedUnique.getField(), entity );
+//
+//                    }
+//
+//
+//                    //TODO: explore making this an Async process
+//                    //We'll repair it again if we have to
+//                    deleteBatch.execute();
+//
+//                    return response;
+//
+//
+//                }
+//                catch ( ConnectionException e ) {
+//                    logger.error( "Failed to getIdField", e );
+//                    throw new RuntimeException( e );
+//                }
+//            }
+//        } );
 
-                    final UUID startTime = UUIDGenerator.newTimeUUID();
-
-                    //Get back set of unique values that correspond to collection of fields
-                    UniqueValueSet set = uniqueValueSerializationStrategy.load( collectionScope, fields );
-
-                    //Short circut if we don't have any uniqueValues from the given fields.
-                    if(!set.iterator().hasNext()){
-                        return new MutableFieldSet( 0 );
-                    }
-
-
-                    //loop through each field, and construct an entity load
-                    List<Id> entityIds = new ArrayList<>(fields.size());
-                    List<UniqueValue> uniqueValues = new ArrayList<>(fields.size());
-
-                    for(final Field expectedField: fields) {
-
-                        UniqueValue value = set.getValue(expectedField.getName());
-
-                        if(value ==null){
-                            logger.debug( "Field does not correspond to a unique value" );
-                        }
-
-                        entityIds.add(value.getEntityId());
-                        uniqueValues.add(value);
-                    }
-
-                    //Load a entity for each entityId we retrieved.
-                    final EntitySet entitySet = entitySerializationStrategy.load(collectionScope, entityIds, startTime);
-
-                    //now loop through and ensure the entities are there.
-                    final MutationBatch deleteBatch = keyspace.prepareMutationBatch();
-
-                    final MutableFieldSet response = new MutableFieldSet(fields.size());
-
-                    for(final UniqueValue expectedUnique: uniqueValues) {
-                        final MvccEntity entity = entitySet.getEntity(expectedUnique.getEntityId());
-
-                        //bad unique value, delete this, it's inconsistent
-                        if(entity == null || !entity.getEntity().isPresent()){
-                            final MutationBatch valueDelete = uniqueValueSerializationStrategy.delete(collectionScope, expectedUnique);
-                            deleteBatch.mergeShallow(valueDelete);
-                            continue;
-                        }
-
-
-                        //else add it to our result set
-                        response.addEntity(expectedUnique.getField(),entity);
-
-                    }
-
-                    //TODO: explore making this an Async process
-                    //We'll repair it again if we have to
-                    deleteBatch.execute();
-
-                    return response;
-
-
-                }
-                catch ( ConnectionException e ) {
-                    logger.error( "Failed to getIdField", e );
-                    throw new RuntimeException( e );
-                }
-            }
-        } );
+        throw new NotImplementedException( "Do this" );
     }
 
 
@@ -473,7 +508,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
 
 
     @Override
-    public Observable<VersionSet> getLatestVersion( final Collection<Id> entityIds ) {
+    public Observable<VersionSet> getLatestVersion( final Collection<ScopeSet<Id>> entityIds ) {
 
         final Timer.Context timer = getLatestTimer.time();
         return Observable.create( new Observable.OnSubscribe<VersionSet>() {
@@ -482,7 +517,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
             public void call( final Subscriber<? super VersionSet> subscriber ) {
                 try {
                     final VersionSet logEntries = mvccLogEntrySerializationStrategy
-                            .load( collectionScope, entityIds, UUIDGenerator.newTimeUUID() );
+                            .load( applicationScope, entityIds, UUIDGenerator.newTimeUUID() );
 
                     subscriber.onNext( logEntries );
                     subscriber.onCompleted();

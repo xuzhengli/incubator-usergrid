@@ -28,6 +28,9 @@ import com.netflix.hystrix.HystrixCommand;
 import com.netflix.hystrix.HystrixCommandGroupKey;
 import com.netflix.hystrix.HystrixThreadPoolProperties;
 
+import org.apache.usergrid.persistence.collection.ScopeSet;
+import org.apache.usergrid.persistence.collection.serialization.impl.ScopeSetImpl;
+import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.model.util.EntityUtils;
 import org.apache.usergrid.persistence.core.astyanax.CassandraConfig;
 
@@ -98,6 +101,7 @@ public class WriteUniqueVerify implements Action1<CollectionIoEvent<MvccEntity>>
         final Entity entity = mvccEntity.getEntity().get();
 
         final CollectionScope scope = ioevent.getEntityCollection();
+        final ApplicationScope applicationScope = ioevent.getApplicationScope();
 
         final MutationBatch batch = keyspace.prepareMutationBatch();
         //allocate our max size, worst case
@@ -117,7 +121,7 @@ public class WriteUniqueVerify implements Action1<CollectionIoEvent<MvccEntity>>
             final UniqueValue written = new UniqueValueImpl( field, mvccEntity.getId(), mvccEntity.getVersion() );
 
             // use TTL in case something goes wrong before entity is finally committed
-            final MutationBatch mb = uniqueValueStrat.write( scope, written, serializationFig.getTimeout() );
+            final MutationBatch mb = uniqueValueStrat.write( applicationScope, scope, written, serializationFig.getTimeout() );
 
             batch.mergeShallow( mb );
             uniqueFields.add(field);
@@ -137,12 +141,12 @@ public class WriteUniqueVerify implements Action1<CollectionIoEvent<MvccEntity>>
         }
 
         // use simple thread pool to verify fields in parallel
-        ConsistentReplayCommand cmd = new ConsistentReplayCommand(uniqueValueStrat,cassandraFig,scope, uniqueFields,entity);
+        ConsistentReplayCommand cmd = new ConsistentReplayCommand(uniqueValueStrat,cassandraFig, applicationScope, scope, uniqueFields,entity);
         Map<String,Field>  uniquenessViolations = cmd.execute();
          cmd.getFailedExecutionException();
         //We have violations, throw an exception
         if ( !uniquenessViolations.isEmpty() ) {
-            throw new WriteUniqueVerifyException( mvccEntity, ioevent.getEntityCollection(), uniquenessViolations );
+            throw new WriteUniqueVerifyException( mvccEntity, applicationScope, ioevent.getEntityCollection(), uniquenessViolations );
         }
     }
 
@@ -150,16 +154,19 @@ public class WriteUniqueVerify implements Action1<CollectionIoEvent<MvccEntity>>
 
         private final UniqueValueSerializationStrategy uniqueValueSerializationStrategy;
         private final CassandraConfig fig;
-        private final CollectionScope scope;
-        private final List<Field> uniqueFields;
+        private final ApplicationScope applicationScope;
+//        private final CollectionScope scope;
+        private final ScopeSet<Field> uniqueFields;
         private final Entity entity;
 
-        public ConsistentReplayCommand(UniqueValueSerializationStrategy uniqueValueSerializationStrategy, CassandraConfig fig, CollectionScope scope, List<Field> uniqueFields, Entity entity){
+        public ConsistentReplayCommand( UniqueValueSerializationStrategy uniqueValueSerializationStrategy,
+                                        CassandraConfig fig, final ApplicationScope applicationScope, CollectionScope
+                                            scope, List<Field> uniqueFields, Entity entity ){
             super(REPLAY_GROUP);
             this.uniqueValueSerializationStrategy = uniqueValueSerializationStrategy;
             this.fig = fig;
-            this.scope = scope;
-            this.uniqueFields = uniqueFields;
+            this.applicationScope = applicationScope;
+            uniqueFields = new ScopeSetImpl<Field>(scope, uniqueFields);
             this.entity = entity;
         }
 
@@ -178,7 +185,7 @@ public class WriteUniqueVerify implements Action1<CollectionIoEvent<MvccEntity>>
             //now get the set of fields back
             final UniqueValueSet uniqueValues;
             try {
-                uniqueValues = uniqueValueSerializationStrategy.load( scope,consistencyLevel, uniqueFields );
+                uniqueValues = uniqueValueSerializationStrategy.load( applicationScope,  scope,consistencyLevel, uniqueFields );
             }
             catch ( ConnectionException e ) {
                 throw new RuntimeException( "Unable to read from cassandra", e );

@@ -42,6 +42,7 @@ import org.apache.usergrid.persistence.collection.serialization.SerializationFig
 import org.apache.usergrid.persistence.collection.serialization.UniqueValueSerializationStrategy;
 import org.apache.usergrid.persistence.core.guice.ProxyImpl;
 import org.apache.usergrid.persistence.core.metrics.MetricsFactory;
+import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.core.task.TaskExecutor;
 
 import com.google.common.base.Preconditions;
@@ -78,10 +79,10 @@ public class EntityCollectionManagerFactoryImpl implements EntityCollectionManag
     private final EntityCacheFig entityCacheFig;
     private final MetricsFactory metricsFactory;
 
-    private LoadingCache<CollectionScope, EntityCollectionManager> ecmCache =
+    private LoadingCache<ApplicationScope, EntityCollectionManager> ecmCache =
         CacheBuilder.newBuilder().maximumSize( 1000 )
-                    .build( new CacheLoader<CollectionScope, EntityCollectionManager>() {
-                        public EntityCollectionManager load( CollectionScope scope ) {
+                    .build( new CacheLoader<ApplicationScope, EntityCollectionManager>() {
+                        public EntityCollectionManager load( ApplicationScope scope ) {
                                   //create the target EM that will perform logic
                             final EntityCollectionManager target = new EntityCollectionManagerImpl(
                                 writeStart, writeVerifyUnique,
@@ -129,10 +130,10 @@ public class EntityCollectionManagerFactoryImpl implements EntityCollectionManag
         this.metricsFactory = metricsFactory;
     }
     @Override
-    public EntityCollectionManager createCollectionManager(CollectionScope collectionScope) {
-        Preconditions.checkNotNull(collectionScope);
+    public EntityCollectionManager createCollectionManager(ApplicationScope applicationScope) {
+        Preconditions.checkNotNull(applicationScope, "applicationScope cannot be null");
         try{
-            return ecmCache.get(collectionScope);
+            return ecmCache.get(applicationScope);
         }catch (ExecutionException ee){
             throw new RuntimeException(ee);
         }

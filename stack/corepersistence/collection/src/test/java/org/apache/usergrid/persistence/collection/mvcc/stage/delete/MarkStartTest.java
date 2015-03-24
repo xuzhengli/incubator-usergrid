@@ -62,7 +62,7 @@ public class MarkStartTest extends AbstractIdStageTest {
 
 
         //verify the observable is correct
-        CollectionIoEvent<MvccEntity> result = newStage.call( new CollectionIoEvent<Id>( context, id ) );
+        CollectionIoEvent<MvccEntity> result = newStage.call( new CollectionIoEvent<Id>( applicationScope, context, id ) );
 
 
         //verify the log entry is correct

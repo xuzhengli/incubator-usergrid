@@ -37,48 +37,59 @@ public interface EntityCollectionManager {
      * completely overwrite the previous values, if it exists.
      * @param entity The entity to update
      */
-    public Observable<Entity> write( Entity entity );
+    Observable<Entity> write( CollectionScope collectionScope, Entity entity );
 
 
     /**
      * MarkCommit the entity and remove it's indexes with the given entity id
+     * @param collectionScope The scope this enttity exists in
+     * @param entityId The entity id to delete
      */
-    public Observable<Id> delete( Id entityId );
+    Observable<Id> delete( CollectionScope collectionScope, Id entityId );
 
     /**
      * Load the entity with the given entity Id
+     * @param collectionScope The scope this entity exists in
+     * @param entityId The entity id to remove
      */
-    public Observable<Entity> load( Id entityId );
+    Observable<Entity> load(CollectionScope collectionScope,  Id entityId );
 
     /**
      * Return the latest versions of the specified entityIds
+     *
+     * @param entityId A collection of scopes with the entity Ids set
      */
-    public Observable<VersionSet> getLatestVersion( Collection<Id> entityId );
+    Observable<VersionSet> getLatestVersion( Collection<ScopeSet<Id>> entityId );
 
 
-    public Observable<FieldSet> getEntitiesFromFields( Collection<Field> fields );
+    /**
+     *
+     * @param fields The collection of scopes for fields to use
+     * @return
+     */
+    Observable<FieldSet> getEntitiesFromFields( Collection<ScopeSet<Field>> fields );
 
     /**
      * Gets the Id for a field
+     *
+     * @param collectionScope The scope for the field
+     * @param field The field for the scope
+     *
      * @return most likely a single Id, watch for onerror events
      */
-    public Observable<Id> getIdField(final Field field);
+    Observable<Id> getIdField(CollectionScope collectionScope,  Field field);
 
-    /**
-     * Audit a unique field, and remove any stale entries in the system
-     * @param field The field to audit within this collection scope.
-
-    public Observable<Integer> auditUniqueField(final Field field);
-     */
     /**
      * Load all the entityIds into the observable entity set
+     *
+     * @param entityIds The entity ids
      */
-    public Observable<EntitySet> load(Collection<Id> entityIds);
+    Observable<EntitySet> load(Collection<ScopeSet<Id>> entityIds);
 
 
     /**
      * Returns health of entity data store.
      */
-    public Health getHealth();
+    Health getHealth();
 
 }

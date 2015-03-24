@@ -25,6 +25,7 @@ import org.apache.usergrid.persistence.collection.CollectionScope;
 import org.apache.usergrid.persistence.collection.event.EntityDeleted;
 import org.apache.usergrid.persistence.collection.serialization.MvccEntitySerializationStrategy;
 import org.apache.usergrid.persistence.collection.mvcc.MvccLogEntrySerializationStrategy;
+import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.core.task.Task;
 import org.apache.usergrid.persistence.model.entity.Id;
 import org.slf4j.Logger;
@@ -52,25 +53,24 @@ public class EntityDeletedTask implements Task<Void> {
     private final MvccLogEntrySerializationStrategy logEntrySerializationStrategy;
     private final MvccEntitySerializationStrategy entitySerializationStrategy;
     private final Set<EntityDeleted> listeners;
+    private final ApplicationScope applicationScope;
     private final CollectionScope collectionScope;
     private final Id entityId;
     private final UUID version;
 
 
     @Inject
-    public EntityDeletedTask(
-        EntityVersionTaskFactory entityVersionTaskFactory,
-        final MvccLogEntrySerializationStrategy logEntrySerializationStrategy,
-        @ProxyImpl final MvccEntitySerializationStrategy entitySerializationStrategy,
-        final Set<EntityDeleted>                listeners, // MUST be a set or Guice will not inject
-        @Assisted final CollectionScope         collectionScope,
-        @Assisted final Id                      entityId,
-        @Assisted final UUID                    version) {
+    public EntityDeletedTask( EntityVersionTaskFactory entityVersionTaskFactory, final MvccLogEntrySerializationStrategy logEntrySerializationStrategy,
+                              @ProxyImpl final MvccEntitySerializationStrategy entitySerializationStrategy,
+                              final Set<EntityDeleted> listeners, // MUST be a set or Guice will not inject
+                              @Assisted final ApplicationScope applicationScope, @Assisted final CollectionScope collectionScope,
+                              @Assisted final Id entityId, @Assisted final UUID version ) {
 
         this.entityVersionTaskFactory = entityVersionTaskFactory;
         this.logEntrySerializationStrategy = logEntrySerializationStrategy;
         this.entitySerializationStrategy = entitySerializationStrategy;
         this.listeners = listeners;
+        this.applicationScope = applicationScope;
         this.collectionScope = collectionScope;
         this.entityId = entityId;
         this.version = version;
@@ -103,8 +103,8 @@ public class EntityDeletedTask implements Task<Void> {
         entityVersionTaskFactory.getCleanupTask( collectionScope, entityId, version, true ).call();
 
         fireEvents();
-        final MutationBatch entityDelete = entitySerializationStrategy.delete(collectionScope, entityId, version);
-        final MutationBatch logDelete = logEntrySerializationStrategy.delete(collectionScope, entityId, version);
+        final MutationBatch entityDelete = entitySerializationStrategy.delete(applicationScope, collectionScope, entityId, version);
+        final MutationBatch logDelete = logEntrySerializationStrategy.delete(applicationScope, collectionScope, entityId, version);
 
         entityDelete.execute();
         logDelete.execute();

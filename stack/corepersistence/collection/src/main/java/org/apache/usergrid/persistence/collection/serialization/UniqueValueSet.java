@@ -20,6 +20,8 @@ package org.apache.usergrid.persistence.collection.serialization;/*
 
 import java.util.Set;
 
+import org.apache.usergrid.persistence.collection.CollectionScope;
+
 
 /**
  * A read only view of unique values
@@ -31,6 +33,6 @@ public interface UniqueValueSet extends Iterable<UniqueValue> {
      * @param fieldName
      * @return
      */
-    public UniqueValue getValue(final String fieldName);
+    public UniqueValue getValue(final CollectionScope scope, final String fieldName);
 
 }

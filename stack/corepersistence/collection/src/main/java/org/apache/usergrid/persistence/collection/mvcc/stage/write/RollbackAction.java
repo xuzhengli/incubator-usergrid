@@ -28,6 +28,7 @@ import org.apache.usergrid.persistence.collection.MvccEntity;
 import org.apache.usergrid.persistence.collection.serialization.UniqueValue;
 import org.apache.usergrid.persistence.collection.serialization.impl.UniqueValueImpl;
 import org.apache.usergrid.persistence.collection.serialization.UniqueValueSerializationStrategy;
+import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.model.entity.Entity;
 import org.apache.usergrid.persistence.model.field.Field;
 
@@ -70,6 +71,7 @@ public class RollbackAction implements Action1<Throwable> {
 
             CollectionRuntimeException cre = ( CollectionRuntimeException ) t;
             final MvccEntity mvccEntity = cre.getEntity();
+            final ApplicationScope applicationScope = cre.getApplicationScope();
             final CollectionScope scope = cre.getCollectionScope();
 
             // one batch to handle rollback
@@ -85,7 +87,7 @@ public class RollbackAction implements Action1<Throwable> {
                         UniqueValue toDelete =
                                 new UniqueValueImpl( field, entity.get().getId(), mvccEntity.getVersion() );
 
-                        MutationBatch deleteMb = uniqueValueStrat.delete(scope,  toDelete );
+                        MutationBatch deleteMb = uniqueValueStrat.delete(applicationScope, scope,  toDelete );
 
                         if ( rollbackMb == null ) {
                             rollbackMb = deleteMb;
@@ -106,7 +108,7 @@ public class RollbackAction implements Action1<Throwable> {
                     }
                 }
 
-                logEntryStrat.delete( scope, entity.get().getId(), mvccEntity.getVersion() );
+                logEntryStrat.delete( applicationScope, scope, entity.get().getId(), mvccEntity.getVersion() );
             }
         }
     }

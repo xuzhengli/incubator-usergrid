@@ -25,8 +25,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 
-import com.netflix.astyanax.model.ConsistencyLevel;
-import org.apache.usergrid.persistence.core.astyanax.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +35,7 @@ import org.apache.usergrid.persistence.collection.serialization.SerializationFig
 import org.apache.usergrid.persistence.collection.serialization.UniqueValue;
 import org.apache.usergrid.persistence.collection.serialization.UniqueValueSerializationStrategy;
 import org.apache.usergrid.persistence.collection.serialization.UniqueValueSet;
+import org.apache.usergrid.persistence.core.astyanax.CassandraFig;
 import org.apache.usergrid.persistence.core.astyanax.ColumnNameIterator;
 import org.apache.usergrid.persistence.core.astyanax.ColumnParser;
 import org.apache.usergrid.persistence.core.astyanax.ColumnTypes;
@@ -44,6 +43,7 @@ import org.apache.usergrid.persistence.core.astyanax.IdRowCompositeSerializer;
 import org.apache.usergrid.persistence.core.astyanax.MultiTennantColumnFamily;
 import org.apache.usergrid.persistence.core.astyanax.MultiTennantColumnFamilyDefinition;
 import org.apache.usergrid.persistence.core.astyanax.ScopedRowKey;
+import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.core.util.ValidationUtils;
 import org.apache.usergrid.persistence.model.entity.Id;
 import org.apache.usergrid.persistence.model.field.Field;
@@ -55,6 +55,7 @@ import com.netflix.astyanax.Keyspace;
 import com.netflix.astyanax.MutationBatch;
 import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
 import com.netflix.astyanax.model.Column;
+import com.netflix.astyanax.model.ConsistencyLevel;
 import com.netflix.astyanax.model.Row;
 import com.netflix.astyanax.query.RowQuery;
 import com.netflix.astyanax.util.RangeBuilder;
@@ -113,8 +114,11 @@ public class UniqueValueSerializationStrategyImpl implements UniqueValueSerializ
     }
 
 
-    public MutationBatch write( final CollectionScope collectionScope, UniqueValue value ) {
+    public MutationBatch write( final ApplicationScope applicationScope, final CollectionScope collectionScope, final UniqueValue value ) {
 
+
+        Preconditions.checkNotNull( applicationScope, "applicationScope is required" );
+        Preconditions.checkNotNull( collectionScope, "collectionScope is required" );
 
         Preconditions.checkNotNull( value, "value is required" );
 
@@ -133,7 +137,7 @@ public class UniqueValueSerializationStrategyImpl implements UniqueValueSerializ
         final EntityVersion ev = new EntityVersion( entityId, entityVersion );
         final UniqueFieldEntry uniqueFieldEntry = new UniqueFieldEntry( entityVersion, field );
 
-        return doWrite( collectionScope, value, new UniqueValueSerializationStrategyImpl.RowOp() {
+        return doWrite(applicationScope,  collectionScope, value, new UniqueValueSerializationStrategyImpl.RowOp() {
 
             @Override
             public void doLookup( final ColumnListMutation<EntityVersion> colMutation ) {
@@ -150,7 +154,7 @@ public class UniqueValueSerializationStrategyImpl implements UniqueValueSerializ
 
 
     @Override
-    public MutationBatch write( final CollectionScope collectionScope, final UniqueValue value, final int timeToLive ) {
+    public MutationBatch write(final ApplicationScope applicationScope,  final CollectionScope collectionScope, final UniqueValue value, final int timeToLive ) {
 
         Preconditions.checkNotNull( value, "value is required" );
         Preconditions.checkArgument( timeToLive > 0, "timeToLive must be greater than 0 is required" );
@@ -165,7 +169,7 @@ public class UniqueValueSerializationStrategyImpl implements UniqueValueSerializ
         final EntityVersion ev = new EntityVersion( entityId, entityVersion );
         final UniqueFieldEntry uniqueFieldEntry = new UniqueFieldEntry( entityVersion, field );
 
-        return doWrite( collectionScope, value, new UniqueValueSerializationStrategyImpl.RowOp() {
+        return doWrite(applicationScope, collectionScope, value, new UniqueValueSerializationStrategyImpl.RowOp() {
 
             @Override
             public void doLookup( final ColumnListMutation<EntityVersion> colMutation ) {
@@ -184,7 +188,7 @@ public class UniqueValueSerializationStrategyImpl implements UniqueValueSerializ
 
 
     @Override
-    public MutationBatch delete( final CollectionScope scope, UniqueValue value ) {
+    public MutationBatch delete(final ApplicationScope applicationScope,  final CollectionScope scope, UniqueValue value ) {
 
         Preconditions.checkNotNull( value, "value is required" );
 
@@ -200,7 +204,7 @@ public class UniqueValueSerializationStrategyImpl implements UniqueValueSerializ
         final EntityVersion ev = new EntityVersion( entityId, entityVersion );
         final UniqueFieldEntry uniqueFieldEntry = new UniqueFieldEntry( entityVersion, field );
 
-        return doWrite( scope, value, new UniqueValueSerializationStrategyImpl.RowOp() {
+        return doWrite(applicationScope, scope, value, new UniqueValueSerializationStrategyImpl.RowOp() {
 
             @Override
             public void doLookup( final ColumnListMutation<EntityVersion> colMutation ) {
@@ -221,14 +225,14 @@ public class UniqueValueSerializationStrategyImpl implements UniqueValueSerializ
      *
      * @param collectionScope We need to use this when getting the keyspace
      */
-    private MutationBatch doWrite( CollectionScope collectionScope, UniqueValue uniqueValue, RowOp op ) {
+    private MutationBatch doWrite( final ApplicationScope applicationScope, CollectionScope collectionScope, UniqueValue uniqueValue, RowOp op ) {
         final MutationBatch batch = keyspace.prepareMutationBatch();
         final CollectionPrefixedKey<Field> uniquePrefixedKey =
             new CollectionPrefixedKey<>( collectionScope.getName(), collectionScope.getOwner(), uniqueValue.getField() );
 
 
         op.doLookup( batch
-            .withRow( CF_UNIQUE_VALUES, ScopedRowKey.fromKey( collectionScope.getApplication(), uniquePrefixedKey ) ) );
+            .withRow( CF_UNIQUE_VALUES, ScopedRowKey.fromKey( applicationScope.getApplication(), uniquePrefixedKey ) ) );
 
 
         final Id ownerId = collectionScope.getOwner();
@@ -239,7 +243,7 @@ public class UniqueValueSerializationStrategyImpl implements UniqueValueSerializ
 
 
         op.doLog( batch.withRow( CF_ENTITY_UNIQUE_VALUES,
-            ScopedRowKey.fromKey( collectionScope.getApplication(), collectionPrefixedEntityKey ) ) );
+            ScopedRowKey.fromKey( applicationScope.getApplication(), collectionPrefixedEntityKey ) ) );
 
 
         return batch;
@@ -248,11 +252,13 @@ public class UniqueValueSerializationStrategyImpl implements UniqueValueSerializ
 
 
     @Override
-    public UniqueValueSet load(final CollectionScope colScope, final Collection<Field> fields ) throws ConnectionException{
-        return load(colScope,ConsistencyLevel.valueOf(cassandraFig.getReadCL()), fields);
+    public UniqueValueSet load(final ApplicationScope applicationScope, final CollectionScope colScope, final Collection<Field> fields ) throws ConnectionException{
+        return load(applicationScope, colScope,ConsistencyLevel.valueOf(cassandraFig.getReadCL()), fields);
     }
+
+
     @Override
-    public UniqueValueSet load(final CollectionScope colScope, final ConsistencyLevel consistencyLevel, final Collection<Field> fields )
+    public UniqueValueSet load(final ApplicationScope applicationScope, final CollectionScope colScope, final ConsistencyLevel consistencyLevel, final Collection<Field> fields )
             throws ConnectionException {
 
         Preconditions.checkNotNull( fields, "fields are required" );
@@ -261,7 +267,7 @@ public class UniqueValueSerializationStrategyImpl implements UniqueValueSerializ
 
         final List<ScopedRowKey<CollectionPrefixedKey<Field>>> keys = new ArrayList<>( fields.size() );
 
-        final Id applicationId = colScope.getApplication();
+        final Id applicationId = applicationScope.getApplication();
         final Id ownerId = colScope.getOwner();
         final String collectionName = colScope.getName();
 
@@ -312,14 +318,14 @@ public class UniqueValueSerializationStrategyImpl implements UniqueValueSerializ
 
 
     @Override
-    public Iterator<UniqueValue> getAllUniqueFields( final CollectionScope collectionScope, final Id entityId ) {
+    public Iterator<UniqueValue> getAllUniqueFields( final ApplicationScope applicationScope,final CollectionScope collectionScope, final Id entityId ) {
 
 
         Preconditions.checkNotNull( collectionScope, "collectionScope is required" );
         Preconditions.checkNotNull( entityId, "entity id is required" );
 
 
-        final Id applicationId = collectionScope.getApplication();
+        final Id applicationId = applicationScope.getApplication();
         final Id ownerId = collectionScope.getOwner();
         final String collectionName = collectionScope.getName();
 

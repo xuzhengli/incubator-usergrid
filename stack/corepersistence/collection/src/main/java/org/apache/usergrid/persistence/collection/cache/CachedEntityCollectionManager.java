@@ -70,19 +70,19 @@ public class CachedEntityCollectionManager implements EntityCollectionManager {
     }
 
     @Override
-    public Observable<FieldSet> getEntitiesFromFields( final Collection<Field> fields ) {
+    public Observable<FieldSet> getEntitiesFromFields( final Collection<ScopeSet<Field>> fields ) {
         return targetEntityCollectionManager.getEntitiesFromFields( fields );
     }
 
     @Override
-    public Observable<Entity> write( final Entity entity ) {
-        return targetEntityCollectionManager.write( entity ).doOnNext( cacheAdd );
+    public Observable<Entity> write( final  CollectionScope collectionScope, final Entity entity ) {
+        return targetEntityCollectionManager.write(collectionScope,  entity ).doOnNext( cacheAdd );
     }
 
 
     @Override
-    public Observable<Id> delete( final Id entityId ) {
-        return targetEntityCollectionManager.delete( entityId ).doOnNext( new Action1<Id>() {
+    public Observable<Id> delete( final  CollectionScope collectionScope, final Id entityId ) {
+        return targetEntityCollectionManager.delete( collectionScope, entityId ).doOnNext( new Action1<Id>() {
             @Override
             public void call( final Id id ) {
                 entityCache.invalidate( id );
@@ -92,32 +92,32 @@ public class CachedEntityCollectionManager implements EntityCollectionManager {
 
 
     @Override
-    public Observable<Entity> load( final Id entityId ) {
+    public Observable<Entity> load(final  CollectionScope collectionScope, final Id entityId ) {
         final Entity entity = entityCache.getIfPresent( entityId );
 
         if ( entity != null ) {
             return Observable.just( entity );
         }
 
-        return targetEntityCollectionManager.load( entityId ).doOnNext( cacheAdd );
+        return targetEntityCollectionManager.load(collectionScope,  entityId ).doOnNext( cacheAdd );
 
     }
 
 
     @Override
-    public Observable<VersionSet> getLatestVersion( final Collection<Id> entityId ) {
+    public Observable<VersionSet> getLatestVersion( final Collection<ScopeSet<Id>> entityId ) {
         return targetEntityCollectionManager.getLatestVersion( entityId );
     }
 
 
     @Override
-    public Observable<Id> getIdField( final Field field ) {
-        return targetEntityCollectionManager.getIdField( field );
+    public Observable<Id> getIdField(final  CollectionScope collectionScope, final Field field ) {
+        return targetEntityCollectionManager.getIdField( collectionScope, field );
     }
 
 
     @Override
-    public Observable<EntitySet> load( final Collection<Id> entityIds ) {
+    public Observable<EntitySet> load( final Collection<ScopeSet<Id>> entityIds ) {
         return targetEntityCollectionManager.load( entityIds );
     }
 

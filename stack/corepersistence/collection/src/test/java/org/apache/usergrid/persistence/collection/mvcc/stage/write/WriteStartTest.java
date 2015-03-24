@@ -72,7 +72,7 @@ public class WriteStartTest extends AbstractEntityStageTest {
 
 
         //verify the observable is correct
-        CollectionIoEvent<MvccEntity> result = newStage.call( new CollectionIoEvent<Entity>( context, entity ) );
+        CollectionIoEvent<MvccEntity> result = newStage.call( new CollectionIoEvent<Entity>( applicationScope, context, entity ) );
 
 
         //verify the log entry is correct
@@ -116,7 +116,7 @@ public class WriteStartTest extends AbstractEntityStageTest {
         WriteStart newStage = new WriteStart( logStrategy );
 
         //verify the observable is correct
-        CollectionIoEvent<MvccEntity> result = newStage.call( new CollectionIoEvent<Entity>( context, entity ) );
+        CollectionIoEvent<MvccEntity> result = newStage.call( new CollectionIoEvent<Entity>( applicationScope, context, entity ) );
 
         verify(mutation,times(0)).execute();
 

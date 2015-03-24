@@ -86,7 +86,7 @@ public class WriteUniqueVerifyTest {
         WriteUniqueVerify newStage = new WriteUniqueVerify( uvstrat, fig, keyspace,cassandraConfig );
 
        newStage.call(
-            new CollectionIoEvent<>( collectionScope, mvccEntity ) ) ;
+            new CollectionIoEvent<>( applicationScope, collectionScope, mvccEntity ) ) ;
 
        //if we get here, it's a success.  We want to test no exceptions are thrown
 

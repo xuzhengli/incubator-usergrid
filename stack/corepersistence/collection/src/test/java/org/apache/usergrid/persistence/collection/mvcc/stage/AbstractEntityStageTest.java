@@ -70,7 +70,7 @@ public abstract class AbstractEntityStageTest {
 
 
         //run the stage
-        validateStage( new CollectionIoEvent<Entity>( context, entity ) );
+        validateStage( new CollectionIoEvent<Entity>( applicationScope, context, entity ) );
     }
 
 

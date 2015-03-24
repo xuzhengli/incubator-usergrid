@@ -87,7 +87,7 @@ public class WriteCommitTest extends AbstractMvccEntityStageTest {
         WriteCommit newStage = new WriteCommit( logStrategy, mvccEntityStrategy, uniqueValueStrategy );
 
 
-        Entity result = newStage.call( new CollectionIoEvent<MvccEntity>( context, mvccEntityInput ) );
+        Entity result = newStage.call( new CollectionIoEvent<MvccEntity>( applicationScope, context, mvccEntityInput ) );
 
 
         //verify the log entry is correct

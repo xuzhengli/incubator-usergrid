@@ -68,7 +68,7 @@ public abstract class AbstractIdStageTest {
 
 
            //run the stage
-           validateStage( new CollectionIoEvent<Id>( context, id ) );
+           validateStage( new CollectionIoEvent<Id>( applicationScope, context, id ) );
        }
 
 

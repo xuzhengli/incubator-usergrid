@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -16,20 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.usergrid.persistence.collection.mvcc.stage;
+
+package org.apache.usergrid.persistence.collection;
 
 
-import org.apache.usergrid.persistence.collection.CollectionScope;
-import org.apache.usergrid.persistence.core.scope.ApplicationScope;
+import java.util.Collection;
+
 import org.apache.usergrid.persistence.model.entity.Id;
 
 
 /**
- * Simple event to signal entity update
+ * A set that contains the collection scope and the ids
  */
-public class EntityUpdateEvent extends CollectionIoEvent<Id> {
+public interface ScopeSet<T> {
 
-    public EntityUpdateEvent( final ApplicationScope applicationScope,  final CollectionScope context, final Id event ) {
-        super( applicationScope, context, event );
-    }
+    /**
+     * Get the scope for this set of ids
+     * @return
+     */
+    CollectionScope getScope();
+
+    /**
+     * Get the set of Ids to load for this scope
+     * @return
+     */
+    Collection<T> getIdentifiers();
+
+    /**
+     * Add the itentifier to the list
+     * @param identifier
+     */
+    void addIdentifier(T identifier);
 }

@@ -17,53 +17,67 @@
  */
 package org.apache.usergrid.persistence.collection.exception;
 
+
 import org.apache.usergrid.persistence.collection.CollectionScope;
 import org.apache.usergrid.persistence.collection.MvccEntity;
+import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 
 
 public class CollectionRuntimeException extends RuntimeException {
 
     private MvccEntity entity;
+    private ApplicationScope applicationScope;
     private CollectionScope collectionScope;
 
 
-    public CollectionRuntimeException( MvccEntity entity, CollectionScope scope, final String message ) {
-        super( message ); 
+    public CollectionRuntimeException(final  MvccEntity entity,final  ApplicationScope applicationScope, final CollectionScope collectionScope, final String message ) {
+        super( message );
         this.entity = entity;
-        this.collectionScope = scope; 
+        this.applicationScope = applicationScope;
+        this.collectionScope = collectionScope;
     }
 
 
-    public CollectionRuntimeException( MvccEntity entity, CollectionScope scope, final String message, final Throwable cause ) {
+    public CollectionRuntimeException(final MvccEntity entity, final ApplicationScope applicationScope,final CollectionScope collectionScope, final String message, final Throwable cause ) {
         super( message, cause );
         this.entity = entity;
-        this.collectionScope = scope; 
+        this.applicationScope = applicationScope;
+        this.collectionScope = collectionScope;
     }
 
 
-    public CollectionRuntimeException( MvccEntity entity, CollectionScope scope, final Throwable cause ) {
+    public CollectionRuntimeException(final MvccEntity entity, final ApplicationScope applicationScope,final CollectionScope collectionScope, final Throwable cause ) {
         super( cause );
         this.entity = entity;
-        this.collectionScope = scope; 
+        this.applicationScope = applicationScope;
+        this.collectionScope = collectionScope;
     }
 
 
-    public CollectionRuntimeException( MvccEntity entity, CollectionScope scope,
+    public CollectionRuntimeException( final MvccEntity entity, final ApplicationScope applicationScope,
+                                       final CollectionScope collectionScope,
             final String message, final Throwable cause, final boolean enableSuppression,
             final boolean writableStackTrace ) {
         super( message, cause, enableSuppression, writableStackTrace );
         this.entity = entity;
-        this.collectionScope = scope; 
+        this.applicationScope = applicationScope;
+        this.collectionScope = collectionScope;
     }
 
-    
+
+    public ApplicationScope getApplicationScope() {
+        return applicationScope;
+    }
+
+
     public CollectionScope getCollectionScope() {
         return collectionScope;
     }
 
+
     /**
      * Entity involved in operation.
-     * @return Entity or null if entity not instantiated yet in operation. 
+     * @return Entity or null if entity not instantiated yet in operation.
      */
     public MvccEntity getEntity() {
         return entity;
