@@ -20,31 +20,39 @@
 package org.apache.usergrid.persistence.collection;
 
 
-import java.util.Collection;
-
-import org.apache.usergrid.persistence.model.entity.Id;
+import java.util.HashMap;
+import java.util.Map;
 
 
 /**
- * A set that contains the collection scope and the ids
+ * A set of scopes, keyed by collectionScope.
+ *
+ * @param <T> The type of value to encapsulate within the scope.  Examples would be Id objects or Fields
  */
-public interface ScopeSet<T> {
+public class ScopeSet<T> {
+
+    private Map<CollectionScope, CollectionMembers<T>> members  = new HashMap<>(  );
+
 
     /**
-     * Get the scope for this set of ids
+     * A factory method to generate a collection member with the given scope.  If one exists, it will be returned
+     * @param scope
      * @return
      */
-    CollectionScope getScope();
+    public CollectionMembers<T> getMembers(final CollectionScope scope){
+        final CollectionMembers<T> existing = members.get( scope );
 
-    /**
-     * Get the set of Ids to load for this scope
-     * @return
-     */
-    Collection<T> getIdentifiers();
+        if(existing != null){
+            return existing;
+        }
 
-    /**
-     * Add the itentifier to the list
-     * @param identifier
-     */
-    void addIdentifier(T identifier);
+        final CollectionMembers<T> newInstance = new CollectionMembers<T>( scope );
+
+        members.put( scope, newInstance );
+
+        return newInstance;
+    }
+
+
+
 }

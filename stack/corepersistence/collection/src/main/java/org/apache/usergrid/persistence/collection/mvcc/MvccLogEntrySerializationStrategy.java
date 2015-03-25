@@ -25,7 +25,7 @@ import java.util.UUID;
 
 import org.apache.usergrid.persistence.collection.CollectionScope;
 import org.apache.usergrid.persistence.collection.MvccLogEntry;
-import org.apache.usergrid.persistence.collection.ScopeSet;
+import org.apache.usergrid.persistence.collection.CollectionMembers;
 import org.apache.usergrid.persistence.collection.VersionSet;
 import org.apache.usergrid.persistence.core.migration.schema.Migration;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
@@ -59,7 +59,7 @@ public interface MvccLogEntrySerializationStrategy extends Migration {
      *
      * @return The deserialized version of the log entry
      */
-    VersionSet load(  ApplicationScope applicationScope,  Collection<ScopeSet<Id>> entityIds,  UUID version );
+    VersionSet load(  ApplicationScope applicationScope,  Collection<CollectionMembers<Id>> entityIds,  UUID version );
 
     /**
      * Load a list, from highest to lowest of the stage with versions <= version up to maxSize elements

@@ -26,7 +26,7 @@ import java.util.UUID;
 import org.apache.usergrid.persistence.collection.CollectionScope;
 import org.apache.usergrid.persistence.collection.EntitySet;
 import org.apache.usergrid.persistence.collection.MvccEntity;
-import org.apache.usergrid.persistence.collection.ScopeSet;
+import org.apache.usergrid.persistence.collection.CollectionMembers;
 import org.apache.usergrid.persistence.core.migration.data.VersionedData;
 import org.apache.usergrid.persistence.core.migration.schema.Migration;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
@@ -57,7 +57,7 @@ public interface MvccEntitySerializationStrategy extends Migration, VersionedDat
      * @param entityIds
      * @return
      */
-    public EntitySet load(ApplicationScope applicationScope, Collection<ScopeSet<Id>> entityIds, UUID maxVersion);
+    public EntitySet load(ApplicationScope applicationScope, Collection<CollectionMembers<Id>> entityIds, UUID maxVersion);
 
     /**
      * Load a list, from highest to lowest of the entity with versions <= version up to maxSize elements

@@ -70,7 +70,7 @@ public class CachedEntityCollectionManager implements EntityCollectionManager {
     }
 
     @Override
-    public Observable<FieldSet> getEntitiesFromFields( final Collection<ScopeSet<Field>> fields ) {
+    public Observable<FieldSet> getEntitiesFromFields( final Collection<CollectionMembers<Field>> fields ) {
         return targetEntityCollectionManager.getEntitiesFromFields( fields );
     }
 
@@ -105,7 +105,7 @@ public class CachedEntityCollectionManager implements EntityCollectionManager {
 
 
     @Override
-    public Observable<VersionSet> getLatestVersion( final Collection<ScopeSet<Id>> entityId ) {
+    public Observable<VersionSet> getLatestVersion( final Collection<CollectionMembers<Id>> entityId ) {
         return targetEntityCollectionManager.getLatestVersion( entityId );
     }
 
@@ -117,7 +117,7 @@ public class CachedEntityCollectionManager implements EntityCollectionManager {
 
 
     @Override
-    public Observable<EntitySet> load( final Collection<ScopeSet<Id>> entityIds ) {
+    public Observable<EntitySet> load( final Collection<CollectionMembers<Id>> entityIds ) {
         return targetEntityCollectionManager.load( entityIds );
     }
 

@@ -57,9 +57,9 @@ public interface EntityCollectionManager {
     /**
      * Return the latest versions of the specified entityIds
      *
-     * @param entityId A collection of scopes with the entity Ids set
+     * @param entityIds A collection of scopes with the entity Ids set
      */
-    Observable<VersionSet> getLatestVersion( Collection<ScopeSet<Id>> entityId );
+    Observable<VersionSet> getLatestVersion( ScopeSet<Id> entityIds );
 
 
     /**
@@ -67,7 +67,7 @@ public interface EntityCollectionManager {
      * @param fields The collection of scopes for fields to use
      * @return
      */
-    Observable<FieldSet> getEntitiesFromFields( Collection<ScopeSet<Field>> fields );
+    Observable<FieldSet> getEntitiesFromFields( ScopeSet<Field> fields );
 
     /**
      * Gets the Id for a field
@@ -84,7 +84,7 @@ public interface EntityCollectionManager {
      *
      * @param entityIds The entity ids
      */
-    Observable<EntitySet> load(Collection<ScopeSet<Id>> entityIds);
+    Observable<EntitySet> load(ScopeSet<Id> entityIds);
 
 
     /**

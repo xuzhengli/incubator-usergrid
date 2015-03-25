@@ -19,11 +19,8 @@
 package org.apache.usergrid.persistence.collection.impl;
 
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +32,7 @@ import org.apache.usergrid.persistence.collection.EntityCollectionManager;
 import org.apache.usergrid.persistence.collection.EntitySet;
 import org.apache.usergrid.persistence.collection.FieldSet;
 import org.apache.usergrid.persistence.collection.MvccEntity;
-import org.apache.usergrid.persistence.collection.ScopeSet;
+import org.apache.usergrid.persistence.collection.CollectionMembers;
 import org.apache.usergrid.persistence.collection.VersionSet;
 import org.apache.usergrid.persistence.collection.guice.CollectionTaskExecutor;
 import org.apache.usergrid.persistence.collection.mvcc.MvccLogEntrySerializationStrategy;
@@ -51,8 +48,7 @@ import org.apache.usergrid.persistence.collection.serialization.MvccEntitySerial
 import org.apache.usergrid.persistence.collection.serialization.UniqueValue;
 import org.apache.usergrid.persistence.collection.serialization.UniqueValueSerializationStrategy;
 import org.apache.usergrid.persistence.collection.serialization.UniqueValueSet;
-import org.apache.usergrid.persistence.collection.serialization.impl.MutableFieldSet;
-import org.apache.usergrid.persistence.collection.serialization.impl.ScopeSetImpl;
+import org.apache.usergrid.persistence.collection.serialization.impl.CollectionMembersImpl;
 import org.apache.usergrid.persistence.core.guice.ProxyImpl;
 import org.apache.usergrid.persistence.core.metrics.MetricsFactory;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
@@ -71,7 +67,6 @@ import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
 import com.netflix.astyanax.Keyspace;
-import com.netflix.astyanax.MutationBatch;
 import com.netflix.astyanax.connectionpool.OperationResult;
 import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
 import com.netflix.astyanax.model.ColumnFamily;
@@ -281,9 +276,10 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
 
         final Timer.Context timer = loadTimer.time();
 
-        final ScopeSet<Id> entityScopeSet = new ScopeSetImpl<>( collectionScope,  Collections.singleton( entityId ) );
+        final CollectionMembers<Id>
+            entityCollectionMembers = new CollectionMembersImpl<>( collectionScope,  Collections.singleton( entityId ) );
 
-        return load( Collections.singleton( entityScopeSet) ).flatMap(new Func1<EntitySet, Observable<Entity>>() {
+        return load( Collections.singleton( entityCollectionMembers ) ).flatMap(new Func1<EntitySet, Observable<Entity>>() {
             @Override
             public Observable<Entity> call(final EntitySet entitySet) {
                 final MvccEntity entity = entitySet.getEntity(entityId);
@@ -314,7 +310,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
 
 
     @Override
-    public Observable<EntitySet> load( final Collection<ScopeSet<Id>> entityIds ) {
+    public Observable<EntitySet> load( final Collection<CollectionMembers<Id>> entityIds ) {
 
         Preconditions.checkNotNull( entityIds, "entityIds cannot be null" );
 
@@ -359,8 +355,10 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
             public Id call( Field field ) {
                 try {
 
-                    final ScopeSet<Field> scopeSet = new ScopeSetImpl<>( collectionScope, field );
-                    final UniqueValueSet set = uniqueValueSerializationStrategy.load(applicationScope,  Collections.singleton( scopeSet ) );
+                    final CollectionMembers<Field>
+                        collectionMembers = new CollectionMembersImpl<>( collectionScope, field );
+                    final UniqueValueSet set = uniqueValueSerializationStrategy.load(applicationScope,  Collections.singleton(
+                        collectionMembers ) );
                     final UniqueValue value = set.getValue(collectionScope,  field.getName() );
                     return value == null ? null : value.getEntityId();
                 }
@@ -379,7 +377,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
      * @return
      */
     @Override
-    public Observable<FieldSet> getEntitiesFromFields( final Collection<ScopeSet<Field>> fields ) {
+    public Observable<FieldSet> getEntitiesFromFields( final Collection<CollectionMembers<Field>> fields ) {
 //        return rx.Observable.just(fields).map( new Func1<Collection<ScopeSet<Field>>, FieldSet>() {
 //            @Override
 //            public FieldSet call( Collection<ScopeSet<Field>> fields ) {
@@ -508,7 +506,7 @@ public class EntityCollectionManagerImpl implements EntityCollectionManager {
 
 
     @Override
-    public Observable<VersionSet> getLatestVersion( final Collection<ScopeSet<Id>> entityIds ) {
+    public Observable<VersionSet> getLatestVersion( final Collection<CollectionMembers<Id>> entityIds ) {
 
         final Timer.Context timer = getLatestTimer.time();
         return Observable.create( new Observable.OnSubscribe<VersionSet>() {

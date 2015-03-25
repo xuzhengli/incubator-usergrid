@@ -17,50 +17,55 @@
  * under the License.
  */
 
-package org.apache.usergrid.persistence.collection.serialization.impl;
+package org.apache.usergrid.persistence.collection;
 
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
-import org.apache.usergrid.persistence.collection.CollectionScope;
-import org.apache.usergrid.persistence.collection.ScopeSet;
+import org.apache.usergrid.persistence.model.entity.Id;
 
 
-public class ScopeSetImpl<T> implements ScopeSet<T> {
+/**
+ * A set that contains the collection scope and the ids
+ */
+public class CollectionMembers<T> {
 
 
     public final CollectionScope scope;
     public final Collection<T> identifiers;
 
 
-    public ScopeSetImpl( final CollectionScope scope, final Collection<T> identifiers ) {
+    public CollectionMembers( final CollectionScope scope, final Collection<T> identifiers ) {
         this.scope = scope;
         this.identifiers = identifiers;
     }
 
 
-    public ScopeSetImpl( final CollectionScope scope, final T identifier ) {
+    public CollectionMembers( final CollectionScope scope, final T identifier ) {
         this.scope = scope;
-        this.identifiers = Collections.singleton(identifier);
+        this.identifiers = Collections.singleton( identifier );
     }
 
 
 
-    @Override
+    public CollectionMembers( final CollectionScope scope ) {
+        this.scope = scope;
+        this.identifiers = new ArrayList<>(  );
+    }
+
+
     public CollectionScope getScope() {
         return scope;
     }
 
 
-    @Override
     public Collection<T> getIdentifiers() {
         return identifiers;
     }
 
 
-    @Override
     public void addIdentifier( final T identifier ) {
         this.identifiers.add( identifier );
     }

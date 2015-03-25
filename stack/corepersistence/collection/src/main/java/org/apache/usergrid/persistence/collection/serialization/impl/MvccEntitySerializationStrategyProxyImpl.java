@@ -25,7 +25,7 @@ import java.util.UUID;
 import org.apache.usergrid.persistence.collection.CollectionScope;
 import org.apache.usergrid.persistence.collection.EntitySet;
 import org.apache.usergrid.persistence.collection.MvccEntity;
-import org.apache.usergrid.persistence.collection.ScopeSet;
+import org.apache.usergrid.persistence.collection.CollectionMembers;
 import org.apache.usergrid.persistence.collection.serialization.MvccEntitySerializationStrategy;
 import org.apache.usergrid.persistence.collection.serialization.impl.migration.CollectionMigrationPlugin;
 import org.apache.usergrid.persistence.core.astyanax.MultiTennantColumnFamilyDefinition;
@@ -84,7 +84,7 @@ public class MvccEntitySerializationStrategyProxyImpl implements MvccEntitySeria
 
 
     @Override
-    public EntitySet load(  final ApplicationScope applicationScope, final Collection<ScopeSet<Id>> entityIds, final UUID maxVersion ) {
+    public EntitySet load(  final ApplicationScope applicationScope, final Collection<CollectionMembers<Id>> entityIds, final UUID maxVersion ) {
 
         final MigrationRelationship<MvccEntitySerializationStrategy> migration = getMigrationRelationShip();
 

@@ -19,6 +19,8 @@ package org.apache.usergrid.persistence.collection.mvcc.stage.write;
 
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,8 +30,8 @@ import com.netflix.hystrix.HystrixCommand;
 import com.netflix.hystrix.HystrixCommandGroupKey;
 import com.netflix.hystrix.HystrixThreadPoolProperties;
 
-import org.apache.usergrid.persistence.collection.ScopeSet;
-import org.apache.usergrid.persistence.collection.serialization.impl.ScopeSetImpl;
+import org.apache.usergrid.persistence.collection.CollectionMembers;
+import org.apache.usergrid.persistence.collection.serialization.impl.CollectionMembersImpl;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.model.util.EntityUtils;
 import org.apache.usergrid.persistence.core.astyanax.CassandraConfig;
@@ -155,18 +157,18 @@ public class WriteUniqueVerify implements Action1<CollectionIoEvent<MvccEntity>>
         private final UniqueValueSerializationStrategy uniqueValueSerializationStrategy;
         private final CassandraConfig fig;
         private final ApplicationScope applicationScope;
-//        private final CollectionScope scope;
-        private final ScopeSet<Field> uniqueFields;
+        private final CollectionScope collectionScope;
+        private final Collection<Field> uniqueFields;
         private final Entity entity;
 
         public ConsistentReplayCommand( UniqueValueSerializationStrategy uniqueValueSerializationStrategy,
-                                        CassandraConfig fig, final ApplicationScope applicationScope, CollectionScope
-                                            scope, List<Field> uniqueFields, Entity entity ){
+                                        CassandraConfig fig, final ApplicationScope applicationScope, final CollectionScope collectionScope, Collection<Field> uniqueFields, Entity entity ){
             super(REPLAY_GROUP);
             this.uniqueValueSerializationStrategy = uniqueValueSerializationStrategy;
             this.fig = fig;
             this.applicationScope = applicationScope;
-            uniqueFields = new ScopeSetImpl<Field>(scope, uniqueFields);
+            this.collectionScope = collectionScope;
+            this.uniqueFields = uniqueFields;
             this.entity = entity;
         }
 
@@ -184,8 +186,14 @@ public class WriteUniqueVerify implements Action1<CollectionIoEvent<MvccEntity>>
             //allocate our max size, worst case
             //now get the set of fields back
             final UniqueValueSet uniqueValues;
+
+            final CollectionMembers<Field>
+                collectionMembers = new CollectionMembersImpl<Field>( collectionScope, uniqueFields );
+
             try {
-                uniqueValues = uniqueValueSerializationStrategy.load( applicationScope,  scope,consistencyLevel, uniqueFields );
+
+             uniqueValues = uniqueValueSerializationStrategy.load( applicationScope ,consistencyLevel,
+                    Collections.singleton( collectionMembers ));
             }
             catch ( ConnectionException e ) {
                 throw new RuntimeException( "Unable to read from cassandra", e );
@@ -196,7 +204,8 @@ public class WriteUniqueVerify implements Action1<CollectionIoEvent<MvccEntity>>
             //loop through each field that was unique
             for ( final Field field : uniqueFields ) {
 
-                final UniqueValue uniqueValue = uniqueValues.getValue( field.getName() );
+
+                final UniqueValue uniqueValue = uniqueValues.getValue( collectionScope, field.getName() );
 
                 if ( uniqueValue == null ) {
                     throw new RuntimeException(

@@ -18,8 +18,7 @@ import org.apache.cassandra.db.marshal.BytesType;
 import org.apache.usergrid.persistence.collection.CollectionScope;
 import org.apache.usergrid.persistence.collection.EntitySet;
 import org.apache.usergrid.persistence.collection.MvccEntity;
-import org.apache.usergrid.persistence.collection.ScopeSet;
-import org.apache.usergrid.persistence.collection.exception.CollectionRuntimeException;
+import org.apache.usergrid.persistence.collection.CollectionMembers;
 import org.apache.usergrid.persistence.collection.exception.DataCorruptionException;
 import org.apache.usergrid.persistence.collection.exception.EntityTooLargeException;
 import org.apache.usergrid.persistence.collection.mvcc.entity.impl.MvccEntityImpl;
@@ -54,14 +53,11 @@ import com.netflix.astyanax.connectionpool.exceptions.ConnectionException;
 import com.netflix.astyanax.model.Column;
 import com.netflix.astyanax.model.ColumnList;
 import com.netflix.astyanax.model.Row;
-import com.netflix.astyanax.model.Rows;
 import com.netflix.astyanax.serializers.AbstractSerializer;
 import com.netflix.astyanax.serializers.BooleanSerializer;
 
 import rx.Observable;
 import rx.Scheduler;
-import rx.functions.Func1;
-import rx.functions.Func2;
 import rx.schedulers.Schedulers;
 
 
@@ -123,7 +119,7 @@ public class MvccEntitySerializationStrategyV3Impl implements MvccEntitySerializ
 
 
     @Override
-    public EntitySet load( final ApplicationScope applicationScope, final Collection<ScopeSet<Id>> entityIds,
+    public EntitySet load( final ApplicationScope applicationScope, final Collection<CollectionMembers<Id>> entityIds,
                            final UUID maxVersion ) {
 
 
@@ -144,7 +140,7 @@ public class MvccEntitySerializationStrategyV3Impl implements MvccEntitySerializ
 
         final List<ScopedRowKey<CollectionPrefixedKey<Id>>> rowKeys = new ArrayList<>( entityIds.size() );
 
-        for(ScopeSet<Id> collectionScope: entityIds) {
+        for(CollectionMembers<Id> collectionScope: entityIds) {
 
             final Id ownerId = collectionScope.getScope().getOwner();
             final String collectionName = collectionScope.getScope().getName();
@@ -206,8 +202,7 @@ public class MvccEntitySerializationStrategyV3Impl implements MvccEntitySerializ
                                        .withColumnSlice( COL_VALUE ).execute().getResult();
                     }
                     catch ( ConnectionException e ) {
-                        throw new CollectionRuntimeException( null, applicationScope,
-                            "An error occurred connecting to cassandra", e );
+                        throw new RuntimeException("An error occurred connecting to cassandra", e );
                     }
                 } ).subscribeOn( scheduler );
             }, 10 )
@@ -278,9 +273,10 @@ public class MvccEntitySerializationStrategyV3Impl implements MvccEntitySerializ
     public Optional<MvccEntity> load(  final ApplicationScope applicationScope, final CollectionScope scope, final Id entityId ) {
 
 
-        final ScopeSet<Id> scopeSet = new ScopeSetImpl<>( scope, Collections.singleton( entityId ) );
+        final CollectionMembers<Id>
+            collectionMembers = new CollectionMembersImpl<>( scope, Collections.singleton( entityId ) );
 
-        final EntitySet results = load( applicationScope, Collections.singleton( scopeSet ), UUIDGenerator.newTimeUUID() );
+        final EntitySet results = load( applicationScope, Collections.singleton( collectionMembers ), UUIDGenerator.newTimeUUID() );
 
         return Optional.fromNullable( results.getEntity( entityId ));
     }

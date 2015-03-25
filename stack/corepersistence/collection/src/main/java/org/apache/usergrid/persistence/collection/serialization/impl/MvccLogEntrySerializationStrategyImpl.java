@@ -38,9 +38,8 @@ import org.apache.cassandra.db.marshal.UUIDType;
 
 import org.apache.usergrid.persistence.collection.CollectionScope;
 import org.apache.usergrid.persistence.collection.MvccLogEntry;
-import org.apache.usergrid.persistence.collection.ScopeSet;
+import org.apache.usergrid.persistence.collection.CollectionMembers;
 import org.apache.usergrid.persistence.collection.VersionSet;
-import org.apache.usergrid.persistence.collection.exception.CollectionRuntimeException;
 import org.apache.usergrid.persistence.collection.mvcc.MvccLogEntrySerializationStrategy;
 import org.apache.usergrid.persistence.collection.mvcc.entity.Stage;
 import org.apache.usergrid.persistence.collection.mvcc.entity.impl.MvccLogEntryImpl;
@@ -49,7 +48,6 @@ import org.apache.usergrid.persistence.core.astyanax.IdRowCompositeSerializer;
 import org.apache.usergrid.persistence.core.astyanax.MultiTennantColumnFamily;
 import org.apache.usergrid.persistence.core.astyanax.MultiTennantColumnFamilyDefinition;
 import org.apache.usergrid.persistence.core.astyanax.ScopedRowKey;
-import org.apache.usergrid.persistence.core.migration.schema.Migration;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 import org.apache.usergrid.persistence.model.entity.Id;
 
@@ -128,7 +126,7 @@ public class MvccLogEntrySerializationStrategyImpl implements MvccLogEntrySerial
 
 
     @Override
-    public VersionSet load( final ApplicationScope applicationScope, final Collection<ScopeSet<Id>> entityIds,
+    public VersionSet load( final ApplicationScope applicationScope, final Collection<CollectionMembers<Id>> entityIds,
                             final UUID maxVersion ) {
         Preconditions.checkNotNull( applicationScope, "applicationScope is required" );
         Preconditions.checkNotNull( entityIds, "entityIds is required" );
@@ -148,11 +146,11 @@ public class MvccLogEntrySerializationStrategyImpl implements MvccLogEntrySerial
         final List<ScopedRowKey<CollectionPrefixedKey<Id>>> rowKeys = new ArrayList<>( entityIds.size() );
 
 
-        for(ScopeSet<Id> scopeSet: entityIds) {
-            final Id ownerId = scopeSet.getScope().getOwner();
-            final String collectionName = scopeSet.getScope().getName();
+        for(CollectionMembers<Id> collectionMembers : entityIds) {
+            final Id ownerId = collectionMembers.getScope().getOwner();
+            final String collectionName = collectionMembers.getScope().getName();
 
-            for ( final Id entityId : scopeSet.getIdentifiers() ) {
+            for ( final Id entityId : collectionMembers.getIdentifiers() ) {
                 final CollectionPrefixedKey<Id> collectionPrefixedKey =
                     new CollectionPrefixedKey<>( collectionName, ownerId, entityId );
 
@@ -175,8 +173,7 @@ public class MvccLogEntrySerializationStrategyImpl implements MvccLogEntrySerial
                                           .iterator();
         }
         catch ( ConnectionException e ) {
-            throw new CollectionRuntimeException( null, applicationScope, "An error occurred connecting to cassandra",
-                    e );
+            throw new RuntimeException( "An error occurred connecting to cassandra", e );
         }
 
 

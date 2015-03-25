@@ -23,7 +23,7 @@ import org.apache.usergrid.persistence.collection.MvccEntity;
 import org.apache.usergrid.persistence.core.scope.ApplicationScope;
 
 
-public class CollectionRuntimeException extends RuntimeException {
+public abstract class CollectionRuntimeException extends RuntimeException {
 
     private MvccEntity entity;
     private ApplicationScope applicationScope;
